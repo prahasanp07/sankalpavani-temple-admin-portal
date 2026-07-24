@@ -565,24 +565,7 @@ export default function TempleInfo({ onBack }: TempleInfoProps) {
 
         {/* Right Columns - Info widgets & Submit */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-surface-container-high rounded-2xl p-6 border border-outline-variant/30 text-center flex flex-col items-center">
-            <span className="material-symbols-outlined text-primary text-5xl mb-3" style={{ fontVariationSettings: "'FILL' 1" }}>
-              temple_hindu
-            </span>
-            <h4 className="font-serif text-lg font-bold text-on-surface">Publish Parameters</h4>
-            <p className="font-sans text-xs text-on-surface-variant mt-2 leading-relaxed mb-6">
-              Any changes made here will immediately propagate live to the mobile app, pilgrim kiosks, and online booking calendars. Please review carefully before signing.
-            </p>
 
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="w-full bg-primary hover:bg-on-primary-container text-on-primary py-3 rounded-xl font-bold text-sm shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Save size={16} />
-              <span>{isSaving ? 'Propagating Live...' : 'Save & Deploy Parameters'}</span>
-            </button>
-          </div>
 
           {/* Upload your photos section */}
           <div className="bg-surface-container-lowest rounded-2xl shadow-sacred border border-outline-variant/30 p-6 space-y-4">
@@ -727,6 +710,25 @@ export default function TempleInfo({ onBack }: TempleInfoProps) {
                 </span>
               </div> */}
             </div>
+          </div>
+
+          <div className="bg-surface-container-high rounded-2xl p-6 border border-outline-variant/30 text-center flex flex-col items-center">
+            <span className="material-symbols-outlined text-primary text-5xl mb-3" style={{ fontVariationSettings: "'FILL' 1" }}>
+              temple_hindu
+            </span>
+            <h4 className="font-serif text-lg font-bold text-on-surface">Publish Parameters</h4>
+            <p className="font-sans text-xs text-on-surface-variant mt-2 leading-relaxed mb-6">
+              Any changes made here will immediately propagate live to the mobile app, pilgrim kiosks, and online booking calendars. Please review carefully before signing.
+            </p>
+
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="w-full bg-primary hover:bg-on-primary-container text-on-primary py-3 rounded-xl font-bold text-sm shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Save size={16} />
+              <span>{isSaving ? 'Propagating Live...' : 'Save & Deploy Parameters'}</span>
+            </button>
           </div>
         </div>
 
