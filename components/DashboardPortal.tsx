@@ -19,6 +19,44 @@ import {
   Users
 } from 'lucide-react';
 
+interface Booking {
+  receiptNo: string;
+  devoteeName: string;
+  gotra: string;
+  nakshetra: string;
+  sevaName: string;
+  amount: number;
+  paymentStatus: 'Paid' | 'Pending' | 'Refunded';
+  bookingDate: string;
+  timeSlot: string;
+}
+
+const DEFAULT_BOOKINGS: Booking[] = [
+  { receiptNo: 'SV-2026-0612', devoteeName: 'Raghavendran Iyer', gotra: 'Bharadwaja', nakshetra: 'Krittika', sevaName: 'Maha Abhisheka', amount: 1500, paymentStatus: 'Paid', bookingDate: '2026-06-28', timeSlot: '07:30 AM' },
+  { receiptNo: 'SV-2026-0613', devoteeName: 'Venkatesh Prasad', gotra: 'Kashyapa', nakshetra: 'Rohini', sevaName: 'Archana Pooja', amount: 101, paymentStatus: 'Paid', bookingDate: '2026-06-28', timeSlot: '09:00 AM' },
+  { receiptNo: 'SV-2026-0614', devoteeName: 'Deepika Rao', gotra: 'Vasishta', nakshetra: 'Ashwini', sevaName: 'Annadanam Seva', amount: 2100, paymentStatus: 'Paid', bookingDate: '2026-06-28', timeSlot: '12:00 PM' },
+  { receiptNo: 'SV-2026-0615', devoteeName: 'Suresh Kumar', gotra: 'Srivatsa', nakshetra: 'Revati', sevaName: 'Vahan Pooja', amount: 1100, paymentStatus: 'Pending', bookingDate: '2026-06-27', timeSlot: '04:30 PM' },
+  { receiptNo: 'SV-2026-0616', devoteeName: 'Meenakshi Sundaram', gotra: 'Atri', nakshetra: 'Anuradha', sevaName: 'Archana Pooja', amount: 101, paymentStatus: 'Paid', bookingDate: '2026-06-27', timeSlot: '10:00 AM' },
+  { receiptNo: 'SV-2026-0617', devoteeName: 'Vikram Hegde', gotra: 'Viswamitra', nakshetra: 'Sravana', sevaName: 'Chandi Homa', amount: 5001, paymentStatus: 'Paid', bookingDate: '2026-06-26', timeSlot: '06:00 AM' },
+  { receiptNo: 'SV-2026-0618', devoteeName: 'Anantha Padmanabha', gotra: 'Kaushika', nakshetra: 'Uttara Phalguni', sevaName: 'Sahasranama Archana', amount: 501, paymentStatus: 'Paid', bookingDate: '2026-06-25', timeSlot: '08:30 AM' },
+  { receiptNo: 'SV-2026-0619', devoteeName: 'Shruthi Vishwanath', gotra: 'Gautama', nakshetra: 'Punarvasu', sevaName: 'Maha Abhisheka', amount: 1500, paymentStatus: 'Refunded', bookingDate: '2026-06-25', timeSlot: '07:30 AM' },
+  { receiptNo: 'SV-2026-0620', devoteeName: 'Hari Prasad Bhat', gotra: 'Angirasa', nakshetra: 'Jyeshtha', sevaName: 'Archana Pooja', amount: 101, paymentStatus: 'Paid', bookingDate: '2026-06-24', timeSlot: '11:00 AM' },
+  { receiptNo: 'SV-2026-0621', devoteeName: 'Narayana Murthy', gotra: 'Shandilya', nakshetra: 'Pushya', sevaName: 'Chandi Homa', amount: 5001, paymentStatus: 'Pending', bookingDate: '2026-06-23', timeSlot: '06:00 AM' },
+  { receiptNo: 'SV-2026-0622', devoteeName: 'Vijayalakshmi R.', gotra: 'Kashyapa', nakshetra: 'Hasta', sevaName: 'Sahasranama Archana', amount: 501, paymentStatus: 'Paid', bookingDate: '2026-06-22', timeSlot: '09:30 AM' },
+  { receiptNo: 'SV-2026-0623', devoteeName: 'Srinivasa Raghavan', gotra: 'Bharadwaja', nakshetra: 'Swati', sevaName: 'Annadanam Seva', amount: 2100, paymentStatus: 'Paid', bookingDate: '2026-06-21', timeSlot: '12:30 PM' },
+  { receiptNo: 'SV-2026-0624', devoteeName: 'Kalyani Deshpande', gotra: 'Vasishta', nakshetra: 'Chitra', sevaName: 'Vahan Pooja', amount: 1100, paymentStatus: 'Paid', bookingDate: '2026-06-20', timeSlot: '03:00 PM' }
+];
+
+const getTodayDateString = (bookingsList: Booking[]) => {
+  const actualToday = new Date().toISOString().split('T')[0];
+  const hasTodayBookings = bookingsList.some(b => b.bookingDate === actualToday);
+  if (hasTodayBookings) return actualToday;
+
+  if (bookingsList.length === 0) return actualToday;
+  const dates = bookingsList.map(b => b.bookingDate);
+  return dates.reduce((max, d) => d > max ? d : max, dates[0]);
+};
+
 interface DashboardPortalProps {
   onNavigate: (tabId: string) => void;
 }
@@ -30,12 +68,65 @@ export default function DashboardPortal({ onNavigate }: DashboardPortalProps) {
   const [showDevoteeModal, setShowDevoteeModal] = useState(false);
   const [showRecentBookingsModal, setShowRecentBookingsModal] = useState(false);
 
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [kpiValues, setKpiValues] = useState({
-    sevas: 42,
-    bookings: 15,
+    sevas: 0,
+    bookings: 0,
     dispatch: 8,
-    collections: 24500
+    collections: 0
   });
+
+  const loadBookings = React.useCallback(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('sankalpvani_bookings');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached) as Booking[];
+          setBookings(parsed);
+          
+          const todayStr = getTodayDateString(parsed);
+          const todayDevotees = parsed.filter(b => b.bookingDate === todayStr).length;
+          const recentBookingsCount = parsed.length;
+          const totalColl = parsed
+            .filter(b => b.paymentStatus === 'Paid')
+            .reduce((sum, b) => sum + b.amount, 0);
+
+          setKpiValues({
+            sevas: todayDevotees,
+            bookings: recentBookingsCount,
+            dispatch: 8,
+            collections: totalColl
+          });
+        } catch (e) {}
+      } else {
+        localStorage.setItem('sankalpvani_bookings', JSON.stringify(DEFAULT_BOOKINGS));
+        setBookings(DEFAULT_BOOKINGS);
+        
+        const todayStr = getTodayDateString(DEFAULT_BOOKINGS);
+        const todayDevotees = DEFAULT_BOOKINGS.filter(b => b.bookingDate === todayStr).length;
+        const recentBookingsCount = DEFAULT_BOOKINGS.length;
+        const totalColl = DEFAULT_BOOKINGS
+          .filter(b => b.paymentStatus === 'Paid')
+          .reduce((sum, b) => sum + b.amount, 0);
+
+        setKpiValues({
+          sevas: todayDevotees,
+          bookings: recentBookingsCount,
+          dispatch: 8,
+          collections: totalColl
+        });
+      }
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadBookings();
+    
+    window.addEventListener('sankalpvani_bookings_updated', loadBookings);
+    return () => {
+      window.removeEventListener('sankalpvani_bookings_updated', loadBookings);
+    };
+  }, [loadBookings]);
 
   const [trends, setTrends] = useState([
     { day: "Mon", amount: 12000, height: "40%" },
@@ -201,7 +292,7 @@ export default function DashboardPortal({ onNavigate }: DashboardPortalProps) {
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="font-label-sm text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Today&apos;s Devotees</p>
-              <h3 className="font-display-lg text-3xl text-on-surface mt-1 font-bold">42</h3>
+              <h3 className="font-display-lg text-3xl text-on-surface mt-1 font-bold">{kpiValues.sevas}</h3>
             </div>
             <div className="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center text-primary">
               <Users size={18} />
@@ -222,7 +313,7 @@ export default function DashboardPortal({ onNavigate }: DashboardPortalProps) {
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="font-label-sm text-xs text-on-surface-variant uppercase tracking-wider mb-1 font-semibold">Recent Bookings</p>
-              <h3 className="font-display-lg text-3xl text-on-surface mt-1 font-bold">15</h3>
+              <h3 className="font-display-lg text-3xl text-on-surface mt-1 font-bold">{kpiValues.bookings}</h3>
             </div>
             <div className="w-10 h-10 rounded-full bg-secondary-container/30 flex items-center justify-center text-secondary">
               <span className="material-symbols-outlined">event_available</span>
@@ -256,7 +347,7 @@ export default function DashboardPortal({ onNavigate }: DashboardPortalProps) {
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="font-label-sm text-xs text-on-surface-variant uppercase tracking-wider mb-1 font-semibold">Total Collections</p>
-              <h3 className="font-display-lg text-3xl text-on-surface mt-1 font-bold">₹24.5k</h3>
+              <h3 className="font-display-lg text-3xl text-on-surface mt-1 font-bold">₹{(kpiValues.collections / 1000).toFixed(1)}k</h3>
             </div>
             <div className="w-10 h-10 rounded-full bg-secondary-fixed/50 flex items-center justify-center text-on-secondary-fixed-variant">
               <span className="material-symbols-outlined">currency_rupee</span>
@@ -533,7 +624,7 @@ export default function DashboardPortal({ onNavigate }: DashboardPortalProps) {
               <div>
                 <h3 className="font-serif text-xl font-bold text-primary">Today&apos;s Devotees & Seva Roster</h3>
                 <p className="text-xs text-on-surface-variant font-medium mt-0.5">
-                  Live registry of pilgrims scheduled for pooja performance today (July 24, 2026).
+                  Live registry of pilgrims scheduled for pooja performance today ({getTodayDateString(bookings)}).
                 </p>
               </div>
               <button
@@ -559,28 +650,22 @@ export default function DashboardPortal({ onNavigate }: DashboardPortalProps) {
                     </tr>
                   </thead>
                   <tbody className="text-xs font-semibold text-on-surface divide-y divide-outline-variant/10">
-                    {[
-                      { receipt: 'SV-2026-1001', name: 'Raghavendran Iyer', gotra: 'Bharadwaja / Krittika', seva: 'Maha Abhisheka', time: '06:00 AM - 08:00 AM', persons: 2 },
-                      { receipt: 'SV-2026-1002', name: 'Venkatesh Prasad', gotra: 'Kashyapa / Rohini', seva: 'Archana Pooja', time: '08:30 AM - 09:30 AM', persons: 1 },
-                      { receipt: 'SV-2026-1003', name: 'Deepika Rao', gotra: 'Vashishta / Ashwini', seva: 'Annadanam Seva', time: '12:00 PM - 02:30 PM', persons: 4 },
-                      { receipt: 'SV-2026-1004', name: 'Suresh Kumar', gotra: 'Vishwamitra / Hasta', seva: 'Vahan Pooja', time: '09:00 AM - 10:30 AM', persons: 2 },
-                      { receipt: 'SV-2026-1005', name: 'Meenakshi Sundaram', gotra: 'Harita / Shatabhisha', seva: 'Archana Pooja', time: '11:00 AM - 12:00 PM', persons: 1 },
-                      { receipt: 'SV-2026-1006', name: 'Vikram Hegde', gotra: 'Gautama / Anuradha', seva: 'Chandi Homa', time: '07:00 AM - 11:30 AM', persons: 3 },
-                      { receipt: 'SV-2026-1007', name: 'Anantha Padmanabha', gotra: 'Bharadwaja / Revati', seva: 'Sahasranama Archana', time: '05:30 PM - 07:00 PM', persons: 2 }
-                    ].map((d, i) => (
-                      <tr key={i} className="hover:bg-surface-container-low/30 transition-colors">
-                        <td className="py-3 px-4 font-mono font-bold text-primary">{d.receipt}</td>
-                        <td className="py-3 px-4 font-bold">{d.name}</td>
-                        <td className="py-3 px-4 text-on-surface-variant font-mono text-[11px]">{d.gotra}</td>
-                        <td className="py-3 px-4 text-primary font-bold">{d.seva}</td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="inline-flex items-center gap-1 bg-primary-container/20 text-primary px-2 py-0.5 border border-primary/10 rounded-full font-mono text-[10px]">
-                            {d.time}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center font-bold text-on-surface-variant">{d.persons}</td>
-                      </tr>
-                    ))}
+                    {bookings
+                      .filter(b => b.bookingDate === getTodayDateString(bookings))
+                      .map((d, i) => (
+                        <tr key={i} className="hover:bg-surface-container-low/30 transition-colors">
+                          <td className="py-3 px-4 font-mono font-bold text-primary">{d.receiptNo}</td>
+                          <td className="py-3 px-4 font-bold">{d.devoteeName}</td>
+                          <td className="py-3 px-4 text-on-surface-variant font-mono text-[11px]">{d.gotra} / {d.nakshetra}</td>
+                          <td className="py-3 px-4 text-primary font-bold">{d.sevaName}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="inline-flex items-center gap-1 bg-primary-container/20 text-primary px-2 py-0.5 border border-primary/10 rounded-full font-mono text-[10px]">
+                              {d.timeSlot}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center font-bold text-on-surface-variant">1</td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
@@ -636,29 +721,28 @@ export default function DashboardPortal({ onNavigate }: DashboardPortalProps) {
                     </tr>
                   </thead>
                   <tbody className="text-xs font-semibold text-on-surface divide-y divide-outline-variant/10">
-                    {[
-                      { receipt: 'SV-2026-1008', name: 'Rahul Sharma', seva: 'Archana Pooja', date: 'Today', amount: '₹101', status: 'Completed' },
-                      { receipt: 'SV-2026-1009', name: 'Priya Patel', seva: 'Annadanam Seva', date: 'Today', amount: '₹2,100', status: 'Completed' },
-                      { receipt: 'SV-2026-1010', name: 'Amit Kumar', seva: 'Vahan Pooja', date: 'Yesterday', amount: '₹1,100', status: 'Pending' },
-                      { receipt: 'SV-2026-1011', name: 'Swati Shinde', seva: 'Maha Abhisheka', date: 'Yesterday', amount: '₹1,500', status: 'Completed' },
-                      { receipt: 'SV-2026-1012', name: 'Manoj Bajpayee', seva: 'Archana Pooja', date: '2 days ago', amount: '₹101', status: 'Completed' }
-                    ].map((tx, idx) => (
-                      <tr key={idx} className="hover:bg-surface-container-low/30 transition-colors">
-                        <td className="py-3 px-4 font-mono font-bold text-primary">{tx.receipt}</td>
-                        <td className="py-3 px-4 font-bold">{tx.name}</td>
-                        <td className="py-3 px-4 text-primary font-bold">{tx.seva}</td>
-                        <td className="py-3 px-4 text-center text-on-surface-variant">{tx.date}</td>
-                        <td className="py-3 px-4 font-bold text-on-surface">{tx.amount}</td>
-                        <td className="py-3 px-4 text-center">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${tx.status === 'Completed'
-                              ? 'bg-green-50 text-green-700 border-green-200'
-                              : 'bg-amber-50 text-amber-700 border-amber-200'
-                            }`}>
-                            {tx.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {[...bookings]
+                      .sort((a, b) => b.bookingDate.localeCompare(a.bookingDate) || b.receiptNo.localeCompare(a.receiptNo))
+                      .slice(0, 10)
+                      .map((tx, idx) => (
+                        <tr key={idx} className="hover:bg-surface-container-low/30 transition-colors">
+                          <td className="py-3 px-4 font-mono font-bold text-primary">{tx.receiptNo}</td>
+                          <td className="py-3 px-4 font-bold">{tx.devoteeName}</td>
+                          <td className="py-3 px-4 text-primary font-bold">{tx.sevaName}</td>
+                          <td className="py-3 px-4 text-center text-on-surface-variant">{tx.bookingDate}</td>
+                          <td className="py-3 px-4 font-bold text-on-surface">₹{tx.amount}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${tx.paymentStatus === 'Paid'
+                                ? 'bg-green-50 text-green-700 border-green-200'
+                                : tx.paymentStatus === 'Pending'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-red-50 text-red-700 border-red-200'
+                              }`}>
+                              {tx.paymentStatus}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>

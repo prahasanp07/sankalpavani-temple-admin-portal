@@ -31,6 +31,8 @@ import Scheduling from '../components/Scheduling';
 import Prasadam from '../components/Prasadam';
 import SystemOverview from '../components/SystemOverview';
 import Settings from '../components/Settings';
+import CalendarView from '../components/CalendarView';
+
 
 interface NavigationState {
   activeTab: string;
@@ -199,6 +201,7 @@ export default function Page() {
       case 'transactions': return 'Transactions Ledger';
       case 'scheduling': return 'Duty Shift Roster';
       case 'prasadam': return 'Prasadam Logistics';
+      case 'calendar': return 'Devotee Bookings Calendar';
       case 'system_overview': return 'System Overview Reports';
       case 'settings': return 'System Configurations';
       default: return 'Temple Administration';
@@ -366,6 +369,10 @@ export default function Page() {
 
           {activeTab === 'system_overview' && (
             <SystemOverview />
+          )}
+
+          {activeTab === 'calendar' && (
+            <CalendarView />
           )}
 
           {activeTab === 'settings' && (

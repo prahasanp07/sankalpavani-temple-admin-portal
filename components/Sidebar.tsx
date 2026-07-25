@@ -4,6 +4,7 @@ import React from 'react';
 import {
   LayoutDashboard,
   Grid,
+  Calendar,
   Receipt,
   MessageSquare,
   Utensils,
@@ -65,6 +66,7 @@ export default function Sidebar({
   const navItems = [
     { id: 'dashboard', label: 'Dashboard Portal', icon: LayoutDashboard },
     { id: 'masters_hub', label: 'Masters', icon: Grid },
+    { id: 'calendar', label: 'Calendar Roster', icon: Calendar },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'prasadam', label: 'Prasadam', icon: Utensils },
     { id: 'system_overview', label: 'Reports', icon: BarChart3 },

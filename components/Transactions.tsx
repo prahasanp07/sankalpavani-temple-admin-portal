@@ -44,7 +44,17 @@ const DEFAULT_BOOKINGS: Booking[] = [
 ];
 
 export default function Transactions() {
-  const [bookings, setBookings] = useState<Booking[]>(DEFAULT_BOOKINGS);
+  const [bookings, setBookings] = useState<Booking[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('sankalpvani_bookings');
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch (e) { }
+      }
+    }
+    return DEFAULT_BOOKINGS;
+  });
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Paid' | 'Pending' | 'Refunded'>('All');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -67,6 +77,13 @@ export default function Transactions() {
   const [templeStamp, setTempleStamp] = useState('https://lh3.googleusercontent.com/aida-public/AB6AXuANcPfzsfum8zGj2STDpP_Eds0xOoXxtm_OjHwVkP2MZOW3999u6oVf8P-7GeIMQA1hFSnmMM-gxsed4iDD-ruqP0OJKhI0LBMl2OTllKr3RJspedpV9pOsdDyz43dF_teOB1cC39MQgm579_rgeQq4Evh6iDEqE4aFi5LR5E3SLkqyCjsFrlyNnt_YF1ph80p1i-M4ec2yFc2A9oBE9U3sOA8W64XAiqtD-IxdDQLuoEYwwIz6gU1SePMjmWX2QVVSn1bT8aiesII');
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const cachedBookings = localStorage.getItem('sankalpvani_bookings');
+      if (!cachedBookings) {
+        localStorage.setItem('sankalpvani_bookings', JSON.stringify(DEFAULT_BOOKINGS));
+      }
+    }
+
     const cached = localStorage.getItem('sankalpvani_temple_details');
     if (cached) {
       try {
@@ -79,6 +96,20 @@ export default function Transactions() {
         }
       } catch (e) { }
     }
+
+    const handleBookingsUpdate = () => {
+      const updatedCached = localStorage.getItem('sankalpvani_bookings');
+      if (updatedCached) {
+        try {
+          setBookings(JSON.parse(updatedCached));
+        } catch (e) {}
+      }
+    };
+
+    window.addEventListener('sankalpvani_bookings_updated', handleBookingsUpdate);
+    return () => {
+      window.removeEventListener('sankalpvani_bookings_updated', handleBookingsUpdate);
+    };
   }, []);
 
   // Reset page when filter or sort changes
