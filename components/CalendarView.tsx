@@ -677,23 +677,22 @@ export default function CalendarView() {
                       setActiveBooking(b);
                       setShowDetailModal(true);
                     }}
-                    className="p-3.5 bg-surface-container-low/40 border border-outline-variant/20 rounded-xl hover:bg-surface-container-low hover:border-primary/30 transition-all cursor-pointer relative group shadow-sm"
+                    className="p-3.5 bg-surface-container-low/40 border border-outline-variant/20 rounded-xl hover:bg-surface-container-low hover:border-primary/30 transition-all cursor-pointer group shadow-sm"
                   >
                     <div className="flex justify-between items-start gap-2">
                       <h4 className="font-bold text-xs text-on-surface truncate pr-1">{b.devoteeName}</h4>
-                      <span className="font-mono text-[9px] font-bold text-primary">{b.receiptNo}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold border shrink-0 ${getStatusColor(b.paymentStatus)}`}>
+                          {b.paymentStatus}
+                        </span>
+                        <span className="font-mono text-[9px] font-bold text-primary shrink-0">{b.receiptNo}</span>
+                      </div>
                     </div>
                     <div className="text-primary text-[10px] font-bold mt-0.5">{b.sevaName}</div>
 
                     <div className="flex justify-between items-center mt-3 pt-2.5 border-t border-outline-variant/10 text-[10px] text-on-surface-variant font-medium">
                       <span className="flex items-center gap-0.5"><Clock size={9} /> {b.timeSlot}</span>
                       <span className="font-bold text-on-surface">₹{b.amount}</span>
-                    </div>
-
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold border ${getStatusColor(b.paymentStatus)}`}>
-                        {b.paymentStatus}
-                      </span>
                     </div>
                   </div>
                 ))}
