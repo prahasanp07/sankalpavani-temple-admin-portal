@@ -17,6 +17,16 @@ import {
   CreditCard
 } from 'lucide-react';
 
+interface Pilgrim {
+  name: string;
+  gotra: string;
+  nakshetra: string;
+  age?: number | string;
+  gender?: string;
+  gotram?: string;
+  nakshatram?: string;
+}
+
 interface Booking {
   receiptNo: string;
   devoteeName: string;
@@ -28,6 +38,9 @@ interface Booking {
   bookingDate: string;
   timeSlot: string;
   persons?: number;
+  age?: number | string;
+  gender?: string;
+  pilgrims?: Pilgrim[];
 }
 
 interface SevaOption {
@@ -148,7 +161,9 @@ export default function CalendarView() {
       bookingDate: todayStr,
       timeSlot: '09:00 AM',
       paymentStatus: 'Paid' as Booking['paymentStatus'],
-      persons: 1
+      persons: 1,
+      age: '',
+      gender: 'Male'
     };
   });
 
@@ -178,7 +193,11 @@ export default function CalendarView() {
             const mapped = parsedSevas.map((s: any) => ({
               name: s.name,
               price: s.price,
-              timeRange: s.timeRange || '09:00 AM - 12:00 PM'
+              timeRange: s.timeRange || '09:00 AM - 12:00 PM',
+              personsPerSeva: s.personsPerSeva || 1,
+              extraPersonCost: s.extraPersonCost || 0,
+              aboutSeva: s.aboutSeva || '',
+              instructions: s.instructions || ''
             }));
             setSevas(mapped);
             // Default first item to state form
@@ -315,7 +334,9 @@ export default function CalendarView() {
       paymentStatus: newBookingForm.paymentStatus,
       bookingDate: newBookingForm.bookingDate,
       timeSlot: newBookingForm.timeSlot,
-      persons: newBookingForm.persons
+      persons: newBookingForm.persons,
+      age: newBookingForm.age,
+      gender: newBookingForm.gender
     };
 
     const updated = [newBooking, ...bookings];
@@ -331,7 +352,9 @@ export default function CalendarView() {
       bookingDate: selectedDateStr,
       timeSlot: '09:00 AM',
       paymentStatus: 'Paid',
-      persons: 1
+      persons: 1,
+      age: '',
+      gender: 'Male'
     });
 
     setShowAddModal(false);
@@ -764,13 +787,39 @@ export default function CalendarView() {
                   </div>
                 </div>
 
+                {/* Age */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Age</label>
+                  <input
+                    type="number"
+                    value={newBookingForm.age}
+                    onChange={(e) => setNewBookingForm({ ...newBookingForm, age: e.target.value })}
+                    placeholder="Age"
+                    className="w-full px-3 py-2.5 bg-surface-container-low border border-outline rounded-xl text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+
+                {/* Gender */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Gender</label>
+                  <select
+                    value={newBookingForm.gender}
+                    onChange={(e) => setNewBookingForm({ ...newBookingForm, gender: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-surface-container-low border border-outline rounded-xl text-xs focus:outline-none appearance-none cursor-pointer text-on-surface font-semibold text-on-surface-variant"
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
                 {/* Gotra */}
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Gotra</label>
                   <select
                     value={newBookingForm.gotra}
                     onChange={(e) => setNewBookingForm({ ...newBookingForm, gotra: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-surface-container-low border border-outline rounded-xl text-xs focus:outline-none appearance-none cursor-pointer text-on-surface font-semibold"
+                    className="w-full px-3 py-2.5 bg-surface-container-low border border-outline rounded-xl text-xs focus:outline-none appearance-none cursor-pointer text-on-surface font-semibold text-on-surface-variant"
                   >
                     {gotramsList.map(g => (
                       <option key={g} value={g}>{g}</option>
@@ -784,7 +833,7 @@ export default function CalendarView() {
                   <select
                     value={newBookingForm.nakshetra}
                     onChange={(e) => setNewBookingForm({ ...newBookingForm, nakshetra: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-surface-container-low border border-outline rounded-xl text-xs focus:outline-none appearance-none cursor-pointer text-on-surface font-semibold"
+                    className="w-full px-3 py-2.5 bg-surface-container-low border border-outline rounded-xl text-xs focus:outline-none appearance-none cursor-pointer text-on-surface font-semibold text-on-surface-variant"
                   >
                     {nakshatramsList.map(n => (
                       <option key={n} value={n}>{n}</option>
@@ -962,7 +1011,9 @@ export default function CalendarView() {
                 {/* Devotee Info */}
                 <div className="flex justify-between border-b border-outline-variant/10 pb-2">
                   <span className="text-on-surface-variant font-medium">Devotee Name</span>
-                  <span className="font-bold text-on-surface">{activeBooking.devoteeName}</span>
+                  <span className="font-bold text-on-surface">
+                    {activeBooking.devoteeName} {activeBooking.age ? `(Age: ${activeBooking.age}, ${activeBooking.gender || 'Male'})` : ''}
+                  </span>
                 </div>
 
                 {/* Gotra / Nakshetra */}
@@ -970,6 +1021,21 @@ export default function CalendarView() {
                   <span className="text-on-surface-variant font-medium">Gotra / Nakshatra</span>
                   <span className="font-bold text-on-surface font-mono">{activeBooking.gotra} / {activeBooking.nakshetra}</span>
                 </div>
+
+                {/* Pilgrims List if available */}
+                {activeBooking.pilgrims && activeBooking.pilgrims.length > 0 && (
+                  <div className="border-b border-outline-variant/10 pb-2">
+                    <span className="text-on-surface-variant font-medium block mb-1">Pilgrims Roster ({activeBooking.pilgrims.length})</span>
+                    <div className="space-y-1 pl-2">
+                      {activeBooking.pilgrims.map((p, idx) => (
+                        <div key={idx} className="flex justify-between text-[11px] font-sans">
+                          <span className="text-on-surface-variant">• {p.name} {p.age ? `(Age: ${p.age}, ${p.gender})` : ''}</span>
+                          <span className="font-mono text-on-surface-variant">{p.gotra || p.gotram} / {p.nakshetra || p.nakshatram}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Seva name */}
                 <div className="flex justify-between border-b border-outline-variant/10 pb-2">

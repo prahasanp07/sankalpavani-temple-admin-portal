@@ -52,6 +52,8 @@ export default function PriestMaster({ onBack }: PriestMasterProps) {
   const [search, setSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPriest, setEditingPriest] = useState<Priest | null>(null);
 
   // New priest form state
   const [newPriest, setNewPriest] = useState({
@@ -122,6 +124,16 @@ export default function PriestMaster({ onBack }: PriestMasterProps) {
       return p;
     });
     saveToStorage(updated);
+  };
+
+  const handleSaveEditPriest = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPriest || !editingPriest.name.trim()) return;
+
+    const updated = priests.map(p => p.id === editingPriest.id ? editingPriest : p);
+    saveToStorage(updated);
+    setShowEditModal(false);
+    setEditingPriest(null);
   };
 
   // Filter Logic
@@ -262,7 +274,10 @@ export default function PriestMaster({ onBack }: PriestMasterProps) {
                     <td className="py-4 px-6 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <button 
-                          onClick={() => alert(`Edit details of Acharya ${p.name}`)}
+                          onClick={() => {
+                            setEditingPriest({ ...p });
+                            setShowEditModal(true);
+                          }}
                           className="p-1.5 hover:bg-primary-container/10 text-primary rounded-lg transition-colors cursor-pointer"
                         >
                           <Edit size={14} />
@@ -365,6 +380,96 @@ export default function PriestMaster({ onBack }: PriestMasterProps) {
                   className="px-5 py-2 bg-primary hover:bg-on-primary-container text-on-primary rounded-xl text-xs font-bold shadow-sm cursor-pointer"
                 >
                   Save Acharya Record
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Priest Modal Popup */}
+      {showEditModal && editingPriest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            onClick={() => setShowEditModal(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+          />
+
+          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border-t-4 border-primary p-6 animate-[scaleIn_0.2s_ease-out]">
+            <button 
+              onClick={() => setShowEditModal(false)}
+              className="absolute right-4 top-4 p-2 hover:bg-surface-container-low text-on-surface-variant rounded-full transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <h3 className="font-serif text-2xl text-primary font-bold mb-4">Edit Priest details</h3>
+
+            <form onSubmit={handleSaveEditPriest} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Priest Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Ganesha Dikshidar"
+                  value={editingPriest.name}
+                  onChange={(e) => setEditingPriest({...editingPriest, name: e.target.value})}
+                  className="w-full px-3.5 py-2.5 bg-surface-container-low border border-outline rounded-xl text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Official Role</label>
+                  <select
+                    value={editingPriest.role}
+                    onChange={(e) => setEditingPriest({...editingPriest, role: e.target.value})}
+                    className="w-full px-3.5 py-2.5 bg-surface-container-low border border-outline rounded-xl text-sm focus:outline-none"
+                  >
+                    <option value="Chief Priest">Chief Priest</option>
+                    <option value="Senior Pujari">Senior Pujari</option>
+                    <option value="Pujari">Pujari</option>
+                    <option value="Archaka">Archaka</option>
+                    <option value="Rigveda specialist">Rigveda specialist</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Contact Mobile</label>
+                  <input
+                    type="text"
+                    placeholder="+91 XXXXX XXXXX"
+                    value={editingPriest.mobile}
+                    onChange={(e) => setEditingPriest({...editingPriest, mobile: e.target.value})}
+                    className="w-full px-3.5 py-2.5 bg-surface-container-low border border-outline rounded-xl text-sm focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Ritual Specializations</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Homam rituals, Alankara expert"
+                  value={editingPriest.specialization}
+                  onChange={(e) => setEditingPriest({...editingPriest, specialization: e.target.value})}
+                  className="w-full px-3.5 py-2.5 bg-surface-container-low border border-outline rounded-xl text-sm focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-4 border-t divider-gold flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 border border-outline-variant/60 hover:bg-surface-container-low text-on-surface-variant rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-primary hover:bg-on-primary-container text-on-primary rounded-xl text-xs font-bold shadow-sm cursor-pointer"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>

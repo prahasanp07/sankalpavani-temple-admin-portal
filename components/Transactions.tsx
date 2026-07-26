@@ -12,8 +12,21 @@ import {
   Eye,
   ArrowRight,
   Sparkles,
-  Download
+  Download,
+  ChevronDown
 } from 'lucide-react';
+
+interface Pilgrim {
+  name: string;
+  gotra: string;
+  nakshetra: string;
+  age?: number | string;
+  gender?: string;
+  phone?: string;
+  type?: 'Primary' | 'Family';
+  gotram?: string;
+  nakshatram?: string;
+}
 
 interface Booking {
   receiptNo: string;
@@ -25,6 +38,10 @@ interface Booking {
   paymentStatus: 'Paid' | 'Pending' | 'Refunded';
   bookingDate: string;
   timeSlot: string;
+  persons?: number;
+  age?: number | string;
+  gender?: string;
+  pilgrims?: Pilgrim[];
 }
 
 const DEFAULT_BOOKINGS: Booking[] = [
@@ -58,6 +75,7 @@ export default function Transactions() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Paid' | 'Pending' | 'Refunded'>('All');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [expandedReceiptNo, setExpandedReceiptNo] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Sorting State
@@ -213,7 +231,8 @@ export default function Transactions() {
   };
 
   const triggerPrint = (booking: Booking) => {
-    setToastMessage(`Receipt ${booking.receiptNo} sent to on-site thermal printer...`);
+    const refCode = booking.receiptNo.replace(/\D/g, '') || '20260612';
+    setToastMessage(`Receipt ${booking.receiptNo} (Verification Ref Code: ${refCode}) sent to on-site thermal printer...`);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
@@ -385,58 +404,92 @@ export default function Transactions() {
               {getSortedBookings(filteredBookings)
                 .slice(startIndex, startIndex + itemsPerPage)
                 .map((b) => (
-                  <tr key={b.receiptNo} className="hover:bg-surface-container-low/30 transition-colors">
-                    <td className="py-4 px-6 font-mono text-xs font-bold text-primary">
-                      {b.receiptNo}
-                    </td>
-                    <td className="py-4 px-6 font-bold">{b.devoteeName}</td>
-                    <td className="py-4 px-6 text-xs text-on-surface-variant font-semibold">
-                      G: {b.gotra} / N: {b.nakshetra}
-                    </td>
-                    <td className="py-4 px-6 text-on-surface-variant font-semibold">{b.sevaName}</td>
-                    <td className="py-4 px-6 text-xs text-on-surface-variant font-mono">{b.bookingDate}</td>
-                    <td className="py-4 px-6 font-bold text-on-surface">
-                      <div className="space-y-0.5 font-medium">
-                        <span className="font-bold text-on-surface block">₹{b.amount.toLocaleString()}</span>
-                        <span className="text-[10px] text-on-surface-variant/70 block">{b.timeSlot}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${b.paymentStatus === 'Paid'
-                          ? 'bg-green-50 text-green-700 border-green-200'
-                          : b.paymentStatus === 'Pending'
-                            ? 'bg-amber-50 text-amber-700 border-amber-200'
-                            : 'bg-red-50 text-red-700 border-red-200'
-                        }`}>
-                        {b.paymentStatus === 'Paid' ? (
-                          <CheckCircle size={12} className="mr-1 shrink-0 text-green-600" />
-                        ) : b.paymentStatus === 'Pending' ? (
-                          <Clock size={12} className="mr-1 shrink-0 text-amber-600" />
-                        ) : (
-                          <AlertCircle size={12} className="mr-1 shrink-0 text-red-600" />
-                        )}
-                        {b.paymentStatus}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => setSelectedBooking(b)}
-                          className="p-1.5 hover:bg-primary-container/10 text-primary rounded-lg transition-colors cursor-pointer"
-                          title="Inspect ticket details"
-                        >
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          onClick={() => triggerPrint(b)}
-                          className="p-1.5 hover:bg-secondary-container/20 text-secondary rounded-lg transition-colors cursor-pointer"
-                          title="Print Thermal slip"
-                        >
-                          <Printer size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                  <React.Fragment key={b.receiptNo}>
+                    <tr className="hover:bg-surface-container-low/30 transition-colors">
+                      <td className="py-4 px-6 font-mono text-xs font-bold text-primary">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setExpandedReceiptNo(expandedReceiptNo === b.receiptNo ? null : b.receiptNo)}
+                            className="p-1 hover:bg-primary-container/10 text-primary rounded-lg transition-colors cursor-pointer"
+                            title="Toggle pilgrim roster"
+                          >
+                            <ChevronDown size={14} className={`transform transition-transform ${expandedReceiptNo === b.receiptNo ? 'rotate-180' : ''}`} />
+                          </button>
+                          <span>{b.receiptNo}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 font-bold">{b.devoteeName}</td>
+                      <td className="py-4 px-6 text-xs text-on-surface-variant font-semibold">
+                        G: {b.gotra} / N: {b.nakshetra}
+                      </td>
+                      <td className="py-4 px-6 text-on-surface-variant font-semibold">{b.sevaName}</td>
+                      <td className="py-4 px-6 text-xs text-on-surface-variant font-mono">{b.bookingDate}</td>
+                      <td className="py-4 px-6 font-bold text-on-surface">
+                        <div className="space-y-0.5 font-medium">
+                          <span className="font-bold text-on-surface block">₹{b.amount.toLocaleString()}</span>
+                          <span className="text-[10px] text-on-surface-variant/70 block">{b.timeSlot}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${b.paymentStatus === 'Paid'
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : b.paymentStatus === 'Pending'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-red-50 text-red-700 border-red-200'
+                          }`}>
+                          {b.paymentStatus === 'Paid' ? (
+                            <CheckCircle size={12} className="mr-1 shrink-0 text-green-600" />
+                          ) : b.paymentStatus === 'Pending' ? (
+                            <Clock size={12} className="mr-1 shrink-0 text-amber-600" />
+                          ) : (
+                            <AlertCircle size={12} className="mr-1 shrink-0 text-red-600" />
+                          )}
+                          {b.paymentStatus}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => setSelectedBooking(b)}
+                            className="p-1.5 hover:bg-primary-container/10 text-primary rounded-lg transition-colors cursor-pointer"
+                            title="Inspect ticket details"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button
+                            onClick={() => triggerPrint(b)}
+                            className="p-1.5 hover:bg-secondary-container/20 text-secondary rounded-lg transition-colors cursor-pointer"
+                            title="Print Thermal slip"
+                          >
+                            <Printer size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {expandedReceiptNo === b.receiptNo && (
+                      <tr className="bg-primary/5">
+                        <td colSpan={8} className="p-4 px-6">
+                          <div className="bg-surface-container-lowest border border-primary/10 rounded-xl p-4 space-y-3">
+                            <h4 className="font-bold text-primary text-[10px] uppercase tracking-wider">Pilgrims Roster & Details</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                              <div className="bg-surface-container-low p-3 rounded-lg border border-outline-variant/20">
+                                <p className="font-bold text-on-surface text-xs">{b.devoteeName} (Primary)</p>
+                                <p className="text-on-surface-variant text-[11px] mt-0.5">Gotra: <span className="font-mono">{b.gotra}</span> | Nakshatra: <span className="font-mono">{b.nakshetra}</span></p>
+                                <p className="text-on-surface-variant text-[11px]">Age: {b.age || 'N/A'} | Gender: {b.gender || 'N/A'}</p>
+                              </div>
+                              {b.pilgrims && b.pilgrims.map((p, pIdx) => (
+                                <div key={pIdx} className="bg-surface-container-low p-3 rounded-lg border border-outline-variant/20">
+                                  <p className="font-bold text-on-surface text-xs">{p.name} ({p.type || 'Family'})</p>
+                                  <p className="text-on-surface-variant text-[11px] mt-0.5">Gotra: <span className="font-mono">{p.gotra || p.gotram}</span> | Nakshatra: <span className="font-mono">{p.nakshetra || p.nakshatram}</span></p>
+                                  <p className="text-on-surface-variant text-[11px]">Age: {p.age || 'N/A'} | Gender: {p.gender || 'N/A'}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
             </tbody>
           </table>
@@ -541,6 +594,12 @@ export default function Transactions() {
                   <span className="font-semibold text-on-surface">{selectedBooking.bookingDate} at {selectedBooking.timeSlot}</span>
                 </div>
                 <div className="flex justify-between border-t border-dashed border-outline-variant pt-2 mt-2">
+                  <span className="text-on-surface-variant font-medium">Verification Ref Code:</span>
+                  <span className="font-bold font-mono text-on-surface">
+                    {selectedBooking.receiptNo.replace(/\D/g, '') || '20260612'}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t border-dashed border-outline-variant pt-2 mt-1">
                   <span className="text-on-surface-variant font-bold uppercase tracking-wider text-xs">Settled Amount:</span>
                   <span className="font-bold text-base text-on-surface">₹{selectedBooking.amount.toLocaleString()}</span>
                 </div>
@@ -556,7 +615,10 @@ export default function Transactions() {
                   <span>Print Slip</span>
                 </button>
                 <button
-                  onClick={() => { alert('Downloading high-fidelity digital PDF receipt to local Downloads directory.'); }}
+                  onClick={() => {
+                    const refCode = selectedBooking.receiptNo.replace(/\D/g, '') || '20260612';
+                    alert(`Downloading high-fidelity digital PDF receipt for ${selectedBooking.receiptNo} to local Downloads directory.\nVerification Ref Code: ${refCode}`);
+                  }}
                   className="px-3 py-2.5 border border-outline-variant hover:bg-surface-container-low text-on-surface-variant rounded-xl transition-colors cursor-pointer"
                   title="Download receipt PDF"
                 >

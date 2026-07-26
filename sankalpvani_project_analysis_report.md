@@ -118,8 +118,8 @@ The **SankalpVani Admin Portal** is an enterprise-grade, sacred-themed temple ad
 * **Search & Multi-Filter Toolbar:**
   * Real-time text search filtering by priest name or ritual specialization.
   * Role filter tabs for quick segmenting (*All*, *Chief Priest*, *Pujari*, *Archaka*).
-* **Add Official Priest Modal:**
-  * Form for adding new priests with name, role dropdown, mobile number, and specialization tags.
+* **Add & Edit Official Priest Modals:**
+  * Interactive forms for registering new priests or updating existing ones (name, role dropdown, mobile number, and specialization tags), immediately syncing changes to LocalStorage.
 
 ---
 
@@ -189,11 +189,12 @@ The **SankalpVani Admin Portal** is an enterprise-grade, sacred-themed temple ad
   * **Export to CSV:** Serializes the current filtered/sorted transaction list into downloadable CSV sheets.
   * **Pooja Date Column:** Dedicated column displaying scheduled booking date.
   * **Pagination controls:** Renders entries stats ("Showing 1 to 5 of 13 entries") and responsive page index navigation buttons.
+  * **Expandable Roster Sub-rows:** Chevron toggles reveal detailed lists of all pilgrims (primary and family) including their Name, Gotra, Nakshatra, Age, and Gender.
 * **High-Fidelity Official Seva Darshan Slip Modal:**
   * Authentic Devasthanam header with traditional Sanskrit Sloka (`॥ श्रीः शुभमस्तु देवकार्य सिद्ध्यर्थम् ॥`).
   * Detailed breakdown of Devotee Gotra, Nakshetra, Seva Name, Reporting Time, and Settled Amount.
-  * Geometric simulated QR Code and Sanctorum Entry barcode box.
-  * Direct **Thermal Slip Print** trigger and **PDF Download** simulation.
+  * Clean, traditional layout with a prominent numeric **Verification Reference Code** (QR codes and barcodes are completely removed to maintain Devasthanam design authenticity).
+  * Direct **Thermal Slip Print** trigger (with toast notification displaying verification code) and **PDF Download** simulation.
 
 ---
 
@@ -214,6 +215,8 @@ The **SankalpVani Admin Portal** is an enterprise-grade, sacred-themed temple ad
 
 * **Table-based Ledger Layout:**
   * Replaced the static card view with an enterprise-grade table matching the layout of the Transactions Ledger.
+* **Devotee Booking Order Ingestion:**
+  * Auto-synchronizes on mount and listens for changes in `sankalpvani_bookings`. Bookings containing home delivery requests (`deliverToHome: true` or shipping metadata) are automatically ingested as pending logistics shipments, populating `recipientName`, `streetAddress`, `city`, `state`, `pincode`, and `phone` columns.
 * **Interactive Sorting & Collapsible Filters:**
   * Column headers for Package ID, Devotee Pilgrim, Booking Date, and Status are fully sortable.
   * Collapsible search cards allow filtering by devotee name, status, sacred contents (e.g. Laddu, Kumkum), and dates.
@@ -239,9 +242,11 @@ The **SankalpVani Admin Portal** is an enterprise-grade, sacred-themed temple ad
 * **Devotee Seva Booking Modal Form:**
   * **Dropdown Selectors:** Gothra and Nakshatra text inputs replaced with drop-down selector menus using `gotramsList` and `nakshatramsList` schemas.
   * **Persons Count & Dynamic Costing:** Collects "No. of Persons" and dynamically calculates total ticket cost using Selected Seva's base price, base capacity, and extra person fees.
+  * **Pilgrim Schema Extensions:** Captures devotee **Age** and **Gender** fields for the primary devotee.
   * **Seva Description Cards:** Dynamically retrieves and renders the selected Seva's *About Seva* description and *Instructions / Guidelines* details inside the modal.
 * **Day Agenda Details Drawer:**
-  * Click cell dates to view full pilgrim registries for that date. Includes an inline **Payment Status Selector Dropdown** allowing Pujaris to change status directly (Paid / Pending / Refunded) which updates database states and dispatches global event triggers instantly.
+  * Click cell dates to view full pilgrim registries for that date. Displays the primary devotee's age/gender, and loops over the pilgrims roster showing name, age, gender, gotra, and nakshatra.
+  * Includes an inline **Payment Status Selector Dropdown** allowing Pujaris to change status directly (Paid / Pending / Refunded) which updates database states and dispatches global event triggers instantly.
 * **Layout Overlap Bug Correction:**
   * Corrected layout bug where receipt IDs and status badges overlapped in the top right. Positioned both inline within a flex layout row next to the devotee name, keeping payment status clearly visible at all times.
 

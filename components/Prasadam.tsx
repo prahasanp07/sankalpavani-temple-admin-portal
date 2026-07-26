@@ -24,6 +24,12 @@ interface PrasadamShipment {
   status: 'Pending' | 'Packed' | 'Shipped';
   trackingNo?: string;
   bookingDate: string;
+  recipientName?: string;
+  streetAddress?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  phone?: string;
 }
 
 const DEFAULT_SHIPMENTS: PrasadamShipment[] = [
@@ -75,11 +81,79 @@ export default function Prasadam() {
   // Bulk Selection State
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    const cached = localStorage.getItem('sankalpvani_prasadam');
-    if (!cached) {
+  const syncPrasadamOrders = () => {
+    if (typeof window === 'undefined') return;
+
+    const cachedPrasadam = localStorage.getItem('sankalpvani_prasadam');
+    let baseShipments: PrasadamShipment[] = [];
+    if (cachedPrasadam) {
+      try {
+        baseShipments = JSON.parse(cachedPrasadam);
+      } catch (e) {
+        baseShipments = [...DEFAULT_SHIPMENTS];
+      }
+    } else {
+      baseShipments = [...DEFAULT_SHIPMENTS];
       localStorage.setItem('sankalpvani_prasadam', JSON.stringify(DEFAULT_SHIPMENTS));
     }
+
+    const cachedBookings = localStorage.getItem('sankalpvani_bookings');
+    if (cachedBookings) {
+      try {
+        const bookings = JSON.parse(cachedBookings);
+        if (Array.isArray(bookings)) {
+          let updated = false;
+          bookings.forEach((b: any) => {
+            // Ingestion delivery flags and shipping metadata check
+            const isDeliverHome = b.deliverToHome || b.deliveryFlag || b.shippingAddress || (b.recipientName && b.streetAddress);
+            if (isDeliverHome) {
+              const shipmentId = `PR-${b.receiptNo?.replace('SV-', '') || Math.floor(1000 + Math.random() * 9000)}`;
+              // Check if already in shipments by checking either shipmentId or receiptNo
+              const exists = baseShipments.some(s => s.id === shipmentId || s.id === b.receiptNo);
+              if (!exists) {
+                const recipient = b.recipientName || b.devoteeName;
+                const addressStr = b.streetAddress
+                  ? `${recipient}, ${b.streetAddress}, ${b.city || ''}, ${b.state || ''} - ${b.pincode || ''} (Tel: ${b.phone || ''})`
+                  : b.shippingAddress || 'No Address Provided';
+
+                const newShipment: PrasadamShipment = {
+                  id: b.receiptNo || shipmentId,
+                  devoteeName: b.devoteeName,
+                  address: addressStr,
+                  items: `${b.sevaName} Prasadam packet`,
+                  status: 'Pending', // pending maps to Pending Packing in table UI
+                  bookingDate: b.bookingDate || new Date().toISOString().split('T')[0],
+                  recipientName: b.recipientName || recipient,
+                  streetAddress: b.streetAddress || '',
+                  city: b.city || '',
+                  state: b.state || '',
+                  pincode: b.pincode || '',
+                  phone: b.phone || ''
+                };
+                baseShipments.unshift(newShipment);
+                updated = true;
+              }
+            }
+          });
+          if (updated) {
+            localStorage.setItem('sankalpvani_prasadam', JSON.stringify(baseShipments));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to sync devotee bookings for prasadam", e);
+      }
+    }
+    setShipments(baseShipments);
+  };
+
+  useEffect(() => {
+    syncPrasadamOrders();
+    window.addEventListener('sankalpvani_bookings_updated', syncPrasadamOrders);
+    window.addEventListener('storage', syncPrasadamOrders);
+    return () => {
+      window.removeEventListener('sankalpvani_bookings_updated', syncPrasadamOrders);
+      window.removeEventListener('storage', syncPrasadamOrders);
+    };
   }, []);
 
   // Reset page when filter/sort changes
