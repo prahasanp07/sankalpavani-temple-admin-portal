@@ -580,17 +580,11 @@ export default function DashboardPortal({ onNavigate }: DashboardPortalProps) {
       <div className="border border-dashed border-outline-variant/70 rounded-[24px] p-4 bg-surface-container-lowest flex flex-col md:flex-row items-stretch gap-6 shadow-sm">
         {/* Banner image covering roughly 3/4ths of the container on md+ screens */}
         <div className="relative w-full md:w-5/6 h-64 md:h-56 rounded-2xl overflow-hidden shadow-inner shrink-0 bg-surface-container-low/40 flex items-center justify-center">
-          {/* Blurred background image mirror to fill horizontal margins for portrait aspect ratios */}
-          <img
-            src={templePhoto}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-30 pointer-events-none"
-          />
-          {/* Crisp, original image fitted in the center */}
+          {/* Crisp, original image covering the container */}
           <img
             src={templePhoto}
             alt="Temple Banner"
-            className="relative z-10 max-w-full max-h-full object-contain transition-transform duration-500 hover:scale-[1.02]"
+            className="relative z-10 w-full h-full object-cover transition-transform duration-500 hover:scale-[1.02]"
           />
           {/* Subtle gradient overlay to match our aesthetic */}
           <div className="absolute inset-0 bg-gradient-to-r from-black/5 to-transparent pointer-events-none z-20" />

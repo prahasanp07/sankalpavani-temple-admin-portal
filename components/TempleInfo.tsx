@@ -850,7 +850,7 @@ export default function TempleInfo({ onBack }: TempleInfoProps) {
               temple_hindu
             </span>
             <div>
-              <h4 className="font-serif text-sm font-bold text-on-surface">Temple Parameters</h4>
+              <h4 className="font-serif text-sm font-bold text-on-surface">Temple Core Info</h4>
               <p className="font-sans text-[10px] text-on-surface-variant font-medium hidden md:block">
                 Propagate changes live to mobile apps, kiosks, and online bookings.
               </p>
