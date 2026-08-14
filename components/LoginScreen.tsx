@@ -119,7 +119,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               <div className="flex justify-end mt-1">
                 <a 
                   href="#" 
-                  onClick={(e) => { e.preventDefault(); alert('Please contact the head priest or system administrator to reset password.'); }} 
+                  onClick={(e) => { e.preventDefault(); alert('Please contact the head archaka or system administrator to reset password.'); }} 
                   className="font-sans text-xs text-primary hover:text-on-primary-container transition-colors"
                 >
                   Forgot password?

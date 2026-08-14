@@ -66,7 +66,7 @@ export default function Sidebar({
   const navItems = [
     { id: 'dashboard', label: 'Dashboard Portal', icon: LayoutDashboard },
     { id: 'masters_hub', label: 'Masters', icon: Grid },
-    { id: 'calendar', label: 'Calendar Roster', icon: Calendar },
+    { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'prasadam', label: 'Prasadam', icon: Utensils },
     { id: 'system_overview', label: 'Reports', icon: BarChart3 },
@@ -100,14 +100,14 @@ export default function Sidebar({
           {navItems.map((item) => {
             const Icon = item.icon;
             const isSelected = activeTab === item.id ||
-              (item.id === 'masters_hub' && ['priest_master', 'seva_master', 'temple_info', 'scheduling'].includes(activeTab));
+              (item.id === 'masters_hub' && ['archaka_master', 'seva_master', 'temple_info', 'temple_facilities', 'scheduling'].includes(activeTab));
             return (
               <button
                 key={item.id}
                 onClick={() => handleNavClick(item.id)}
                 className={`w-full flex items-center px-4 py-3 rounded-xl font-sans text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-98 text-left ${isSelected
-                    ? 'text-primary bg-primary-container/10 border-r-4 border-primary'
-                    : 'text-on-surface-variant hover:bg-primary-container/5 hover:text-primary'
+                  ? 'text-primary bg-primary-container/10 border-r-4 border-primary'
+                  : 'text-on-surface-variant hover:bg-primary-container/5 hover:text-primary'
                   }`}
               >
                 <Icon size={18} className="mr-3" />
@@ -167,14 +167,14 @@ export default function Sidebar({
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isSelected = activeTab === item.id ||
-                  (item.id === 'masters_hub' && ['priest_master', 'seva_master', 'temple_info', 'scheduling'].includes(activeTab));
+                  (item.id === 'masters_hub' && ['archaka_master', 'seva_master', 'temple_info', 'temple_facilities', 'scheduling'].includes(activeTab));
                 return (
                   <button
                     key={item.id}
                     onClick={() => handleNavClick(item.id)}
                     className={`w-full flex items-center px-4 py-3 rounded-xl font-sans text-sm font-semibold transition-all text-left ${isSelected
-                        ? 'text-primary bg-primary-container/10'
-                        : 'text-on-surface-variant hover:bg-primary-container/5 hover:text-primary'
+                      ? 'text-primary bg-primary-container/10'
+                      : 'text-on-surface-variant hover:bg-primary-container/5 hover:text-primary'
                       }`}
                   >
                     <Icon size={18} className="mr-3" />

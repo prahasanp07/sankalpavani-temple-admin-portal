@@ -14,7 +14,8 @@ import {
   Users,
   CheckCircle,
   Tag,
-  CreditCard
+  CreditCard,
+  Printer
 } from 'lucide-react';
 
 interface Pilgrim {
@@ -41,6 +42,19 @@ interface Booking {
   age?: number | string;
   gender?: string;
   pilgrims?: Pilgrim[];
+  paymentMode?: 'Cash' | 'UPI' | 'Card' | 'Net Banking';
+  assignedArchaka?: string;
+  assignedArchakaAvatar?: string;
+  sevaStatus?: 'Scheduled' | 'Performed' | 'Cancelled';
+}
+
+interface Archaka {
+  id: string;
+  name: string;
+  role: string;
+  status: 'Active' | 'On Leave' | 'Duty-Assign';
+  avatar?: string;
+  avatarColor?: string;
 }
 
 interface SevaOption {
@@ -51,15 +65,16 @@ interface SevaOption {
   extraPersonCost?: number;
   aboutSeva?: string;
   instructions?: string;
+  capacity?: number;
 }
 
 const DEFAULT_SEVAS: SevaOption[] = [
-  { name: 'Archana Pooja', price: 101, timeRange: '06:00 AM - 08:30 PM', personsPerSeva: 1, extraPersonCost: 0, aboutSeva: 'Traditional chanting of 108 names of the deity.', instructions: 'Wear traditional attire.' },
-  { name: 'Maha Abhisheka', price: 1500, timeRange: '06:00 AM - 08:00 AM', personsPerSeva: 2, extraPersonCost: 500, aboutSeva: 'Sacred bathing ritual performed on the main deity.', instructions: 'Report 15 minutes early.' },
-  { name: 'Annadanam Seva', price: 2100, timeRange: '12:00 PM - 02:30 PM', personsPerSeva: 4, extraPersonCost: 300, aboutSeva: 'Serving holy meals to visiting pilgrims.', instructions: 'No specific dress code.' },
-  { name: 'Vahan Pooja', price: 1100, timeRange: '09:00 AM - 05:00 PM', personsPerSeva: 1, extraPersonCost: 0, aboutSeva: 'Blessing of new vehicles at the temple temple entrance.', instructions: 'Park vehicle at the gate.' },
-  { name: 'Chandi Homa', price: 5001, timeRange: '07:00 AM - 11:30 AM', personsPerSeva: 3, extraPersonCost: 1000, aboutSeva: 'Powerful fire ritual dedicated to Goddess Durga.', instructions: 'Wear clean ethnic clothing.' },
-  { name: 'Sahasranama Archana', price: 501, timeRange: '05:30 PM - 07:00 PM', personsPerSeva: 2, extraPersonCost: 200, aboutSeva: 'Recitation of 1000 holy names of the deity.', instructions: 'Traditional ethnic wear required.' }
+  { name: 'Archana Pooja', price: 101, timeRange: '06:00 AM - 08:30 PM', personsPerSeva: 1, extraPersonCost: 0, aboutSeva: 'Traditional chanting of 108 names of the deity.', instructions: 'Wear traditional attire.', capacity: 200 },
+  { name: 'Maha Abhisheka', price: 1500, timeRange: '06:00 AM - 08:00 AM', personsPerSeva: 2, extraPersonCost: 500, aboutSeva: 'Sacred bathing ritual performed on the main deity.', instructions: 'Report 15 minutes early.', capacity: 5 },
+  { name: 'Annadanam Seva', price: 2100, timeRange: '12:00 PM - 02:30 PM', personsPerSeva: 4, extraPersonCost: 300, aboutSeva: 'Serving holy meals to visiting pilgrims.', instructions: 'No specific dress code.', capacity: 10 },
+  { name: 'Vahan Pooja', price: 1100, timeRange: '09:00 AM - 05:00 PM', personsPerSeva: 1, extraPersonCost: 0, aboutSeva: 'Blessing of new vehicles at the temple temple entrance.', instructions: 'Park vehicle at the gate.', capacity: 15 },
+  { name: 'Chandi Homa', price: 5001, timeRange: '07:00 AM - 11:30 AM', personsPerSeva: 3, extraPersonCost: 1000, aboutSeva: 'Powerful fire ritual dedicated to Goddess Durga.', instructions: 'Wear clean ethnic clothing.', capacity: 1 },
+  { name: 'Sahasranama Archana', price: 501, timeRange: '05:30 PM - 07:00 PM', personsPerSeva: 2, extraPersonCost: 200, aboutSeva: 'Recitation of 1000 holy names of the deity.', instructions: 'Traditional ethnic wear required.', capacity: 50 }
 ];
 
 const DEFAULT_BOOKINGS: Booking[] = [
@@ -119,7 +134,7 @@ const shiftMockBookingsToToday = (bookingsList: Booking[]): Booking[] => {
   today.setHours(0, 0, 0, 0);
   const diffTime = today.getTime() - latestDate.getTime();
   const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-  
+
   return bookingsList.map(b => {
     const [by, bm, bd] = b.bookingDate.split('-').map(Number);
     const bDate = new Date(by, bm - 1, bd);
@@ -137,7 +152,7 @@ const shiftMockBookingsToToday = (bookingsList: Booking[]): Booking[] => {
 export default function CalendarView() {
   // Calendar Navigation
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
-  
+
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => formatDateString(new Date()));
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -163,9 +178,58 @@ export default function CalendarView() {
       paymentStatus: 'Paid' as Booking['paymentStatus'],
       persons: 1,
       age: '',
-      gender: 'Male'
+      gender: 'Male',
+      paymentMode: 'Cash' as Booking['paymentMode'],
+      assignedArchakaId: '',
+      pilgrims: [] as Pilgrim[]
     };
   });
+
+  const [archakas, setArchakas] = useState<Archaka[]>([]);
+  const [conflictWarning, setConflictWarning] = useState<string | null>(null);
+
+  // Helper to determine the booking slot availability status of a given date (dateStr: YYYY-MM-DD)
+  const getDayAvailabilityStatus = (dateStr: string) => {
+    // 1. Get all bookings for this date
+    const dateBookings = bookings.filter(b => b.bookingDate === dateStr);
+
+    // 2. If there are no bookings, all slots for all sevas are fully available -> Green!
+    if (dateBookings.length === 0) {
+      return { status: 'Available', color: 'green', bgClass: 'bg-green-500/10 text-green-700 border-green-200/50' };
+    }
+
+    // 3. For each seva in our system, let's see how many slots are booked versus capacity
+    let hasFullyBookedSeva = false;
+    let hasAvailableSeva = false;
+
+    sevas.forEach(s => {
+      const sevaBookings = dateBookings.filter(b => b.sevaName === s.name);
+      const capacity = s.capacity ?? 20;
+
+      if (capacity !== 999999) {
+        if (sevaBookings.length >= capacity) {
+          hasFullyBookedSeva = true;
+        } else {
+          hasAvailableSeva = true;
+        }
+      } else {
+        hasAvailableSeva = true;
+      }
+    });
+
+    // If all slots for all sevas are fully booked:
+    if (!hasAvailableSeva) {
+      return { status: 'Not Available', color: 'red', bgClass: 'bg-red-500/10 text-red-700 border-red-200/50' };
+    }
+
+    // If some sevas are fully booked but some are still available:
+    if (hasFullyBookedSeva) {
+      return { status: 'Partially Available', color: 'yellow', bgClass: 'bg-amber-500/10 text-amber-700 border-amber-200/50' };
+    }
+
+    // Default fallback is Available
+    return { status: 'Available', color: 'green', bgClass: 'bg-green-500/10 text-green-700 border-green-200/50' };
+  };
 
   // Sync / Load Bookings and Sevas
   const loadData = () => {
@@ -197,7 +261,8 @@ export default function CalendarView() {
               personsPerSeva: s.personsPerSeva || 1,
               extraPersonCost: s.extraPersonCost || 0,
               aboutSeva: s.aboutSeva || '',
-              instructions: s.instructions || ''
+              instructions: s.instructions || '',
+              capacity: s.capacity
             }));
             setSevas(mapped);
             // Default first item to state form
@@ -211,20 +276,93 @@ export default function CalendarView() {
           }
         } catch (e) { }
       }
+
+      // Sync Priests/Archakas
+      const cachedP = localStorage.getItem('sankalpvani_priests');
+      const DEFAULT_PRIESTS: Archaka[] = [
+        { id: '1', name: 'Raghavan Bhattar', role: 'Chief Archaka', status: 'Active', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200' },
+        { id: '2', name: 'Sunder Raman', role: 'Second Priest', status: 'Active', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200' },
+        { id: '3', name: 'Madhavan Shastri', role: 'Purohit', status: 'Active', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200' },
+        { id: '4', name: 'Vasudevan Swamy', role: 'Assistant Priest', status: 'On Leave', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200' },
+        { id: '5', name: 'Ganesha Dikshidar', role: 'Rigveda Scholar', status: 'Active', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200' }
+      ];
+      if (cachedP) {
+        try {
+          const parsed = JSON.parse(cachedP);
+          if (Array.isArray(parsed)) {
+            const mapped = parsed.map((p: any, idx: number) => ({
+              id: p.id || String(idx + 1),
+              name: p.name,
+              role: p.role || 'Archaka',
+              status: p.status || 'Active',
+              avatar: p.avatar || DEFAULT_PRIESTS[idx % DEFAULT_PRIESTS.length].avatar,
+              avatarColor: p.avatarColor
+            }));
+            setArchakas(mapped);
+          }
+        } catch (e) {
+          setArchakas(DEFAULT_PRIESTS);
+        }
+      } else {
+        localStorage.setItem('sankalpvani_priests', JSON.stringify(DEFAULT_PRIESTS));
+        setArchakas(DEFAULT_PRIESTS);
+      }
     }
   };
 
   useEffect(() => {
     loadData();
     window.addEventListener('sankalpvani_bookings_updated', loadData);
+    window.addEventListener('sankalpvani_priests_updated', loadData);
     return () => {
       window.removeEventListener('sankalpvani_bookings_updated', loadData);
+      window.removeEventListener('sankalpvani_priests_updated', loadData);
     };
   }, []);
+
+  useEffect(() => {
+    if (!newBookingForm.assignedArchakaId) {
+      setConflictWarning(null);
+      return;
+    }
+    const archaka = archakas.find(a => a.id === newBookingForm.assignedArchakaId);
+    if (!archaka) {
+      setConflictWarning(null);
+      return;
+    }
+
+    if (archaka.status === 'On Leave') {
+      setConflictWarning(`Warning: ${archaka.name} is currently marked "On Leave" in the registry.`);
+      return;
+    }
+
+    const hasConflict = bookings.some(b => 
+      b.bookingDate === newBookingForm.bookingDate &&
+      b.timeSlot === newBookingForm.timeSlot &&
+      b.assignedArchaka === archaka.name
+    );
+
+    if (hasConflict) {
+      setConflictWarning(`Conflict: ${archaka.name} is already assigned to a seva booking at ${newBookingForm.timeSlot} on this date.`);
+    } else {
+      setConflictWarning(null);
+    }
+  }, [
+    newBookingForm.bookingDate,
+    newBookingForm.timeSlot,
+    newBookingForm.assignedArchakaId,
+    bookings,
+    archakas
+  ]);
 
   const triggerToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  const triggerPrint = (booking: Booking) => {
+    const refCode = booking.receiptNo.replace(/\D/g, '') || '20260612';
+    triggerToast(`Receipt ${booking.receiptNo} (Verification Ref Code: ${refCode}) sent to on-site thermal printer...`);
   };
 
   const notifyUpdate = (updated: Booking[]) => {
@@ -314,6 +452,88 @@ export default function CalendarView() {
     }
   };
 
+  const handlePersonsCountChange = (newCount: number) => {
+    const p = Math.max(1, newCount);
+    setNewBookingForm(prev => {
+      const currentPilgrimsCount = prev.pilgrims ? prev.pilgrims.length : 0;
+      const targetPilgrimsCount = p - 1;
+
+      let nextPilgrims = [...(prev.pilgrims || [])];
+      if (targetPilgrimsCount > currentPilgrimsCount) {
+        for (let i = currentPilgrimsCount; i < targetPilgrimsCount; i++) {
+          nextPilgrims.push({
+            name: '',
+            gotra: prev.gotra || gotramsList[0],
+            nakshetra: prev.nakshetra || nakshatramsList[0],
+            age: '',
+            gender: 'Male'
+          });
+        }
+      } else if (targetPilgrimsCount < currentPilgrimsCount) {
+        nextPilgrims = nextPilgrims.slice(0, targetPilgrimsCount);
+      }
+
+      return {
+        ...prev,
+        persons: p,
+        pilgrims: nextPilgrims,
+        amount: calculateBookingCost(prev.sevaName, p)
+      };
+    });
+  };
+
+  const addPilgrimField = () => {
+    setNewBookingForm(prev => {
+      const nextPilgrims = [...(prev.pilgrims || []), {
+        name: '',
+        gotra: prev.gotra || gotramsList[0],
+        nakshetra: prev.nakshetra || nakshatramsList[0],
+        age: '',
+        gender: 'Male'
+      }];
+      const nextPersons = 1 + nextPilgrims.length;
+      return {
+        ...prev,
+        pilgrims: nextPilgrims,
+        persons: nextPersons,
+        amount: calculateBookingCost(prev.sevaName, nextPersons)
+      };
+    });
+  };
+
+  const removePilgrimField = (index: number) => {
+    setNewBookingForm(prev => {
+      const nextPilgrims = (prev.pilgrims || []).filter((_, i) => i !== index);
+      const nextPersons = 1 + nextPilgrims.length;
+      return {
+        ...prev,
+        pilgrims: nextPilgrims,
+        persons: nextPersons,
+        amount: calculateBookingCost(prev.sevaName, nextPersons)
+      };
+    });
+  };
+
+  const updatePilgrimField = (index: number, field: keyof Pilgrim, value: any) => {
+    setNewBookingForm(prev => {
+      const nextPilgrims = (prev.pilgrims || []).map((p, i) => {
+        if (i === index) {
+          return { ...p, [field]: value };
+        }
+        return p;
+      });
+      return {
+        ...prev,
+        pilgrims: nextPilgrims
+      };
+    });
+  };
+
+  const isTimeSlotValid = (time: string) => {
+    const timeRegex = /^(0?[1-9]|1[0-2]):[0-5][0-9]\s*(AM|PM|am|pm)$/i;
+    return timeRegex.test(time.trim());
+  };
+
   // Submit Booking Form
   const handleAddBooking = (e: React.FormEvent) => {
     e.preventDefault();
@@ -323,7 +543,22 @@ export default function CalendarView() {
       return;
     }
 
+    const timeSlotClean = newBookingForm.timeSlot.trim();
+    const timeRegex = /^(0?[1-9]|1[0-2]):([0-5][0-9])\s*(AM|PM|am|pm)$/i;
+    const match = timeSlotClean.match(timeRegex);
+    if (!match) {
+      alert('Please enter a valid time slot in format "hh:mm AM/PM" (e.g., "09:00 AM" or "05:30 PM").');
+      return;
+    }
+
+    // Normalize format to e.g. "09:00 AM"
+    let [_, hoursStr, minutesStr, ampm] = match;
+    let hours = parseInt(hoursStr, 10);
+    const normalizedHours = hours < 10 ? `0${hours}` : `${hours}`;
+    const normalizedTimeSlot = `${normalizedHours}:${minutesStr} ${ampm.toUpperCase()}`;
+
     const uniqueId = `SV-${newDateYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const selectedArchaka = archakas.find(a => a.id === newBookingForm.assignedArchakaId);
     const newBooking: Booking = {
       receiptNo: uniqueId,
       devoteeName: newBookingForm.devoteeName,
@@ -333,10 +568,14 @@ export default function CalendarView() {
       amount: newBookingForm.amount,
       paymentStatus: newBookingForm.paymentStatus,
       bookingDate: newBookingForm.bookingDate,
-      timeSlot: newBookingForm.timeSlot,
+      timeSlot: normalizedTimeSlot,
       persons: newBookingForm.persons,
       age: newBookingForm.age,
-      gender: newBookingForm.gender
+      gender: newBookingForm.gender,
+      paymentMode: newBookingForm.paymentMode,
+      assignedArchaka: selectedArchaka?.name,
+      assignedArchakaAvatar: selectedArchaka?.avatar,
+      pilgrims: newBookingForm.pilgrims
     };
 
     const updated = [newBooking, ...bookings];
@@ -354,11 +593,21 @@ export default function CalendarView() {
       paymentStatus: 'Paid',
       persons: 1,
       age: '',
-      gender: 'Male'
+      gender: 'Male',
+      paymentMode: 'Cash',
+      assignedArchakaId: '',
+      pilgrims: []
     });
 
+    const shouldPrint = (window as any)._shouldPrintOnSubmit;
+    delete (window as any)._shouldPrintOnSubmit;
+
     setShowAddModal(false);
-    triggerToast(`Booking registration generated: ${uniqueId}`);
+    if (shouldPrint) {
+      triggerPrint(newBooking);
+    } else {
+      triggerToast(`Booking registration generated: ${uniqueId}`);
+    }
   };
 
   const newDateYear = () => {
@@ -420,7 +669,7 @@ export default function CalendarView() {
           <div className="flex items-center gap-1 text-xs font-bold text-primary tracking-wider uppercase mb-1">
             <span>Home</span>
             <span className="text-on-surface-variant/40">/</span>
-            <span>Roster calendar</span>
+            <span>Calendar</span>
           </div>
           <h2 className="font-serif text-3xl font-semibold text-primary">{monthName}</h2>
         </div>
@@ -453,8 +702,8 @@ export default function CalendarView() {
             <button
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded-lg transition-all cursor-pointer ${viewMode === 'grid'
-                  ? 'bg-primary text-on-primary shadow-sm'
-                  : 'text-on-surface-variant hover:text-primary'
+                ? 'bg-primary text-on-primary shadow-sm'
+                : 'text-on-surface-variant hover:text-primary'
                 }`}
               title="Month Grid"
             >
@@ -463,8 +712,8 @@ export default function CalendarView() {
             <button
               onClick={() => setViewMode('list')}
               className={`p-2 rounded-lg transition-all cursor-pointer ${viewMode === 'list'
-                  ? 'bg-primary text-on-primary shadow-sm'
-                  : 'text-on-surface-variant hover:text-primary'
+                ? 'bg-primary text-on-primary shadow-sm'
+                : 'text-on-surface-variant hover:text-primary'
                 }`}
               title="Agenda List"
             >
@@ -475,6 +724,11 @@ export default function CalendarView() {
           {/* Register new Seva */}
           <button
             onClick={() => {
+              const todayStr = formatDateString(new Date());
+              if (selectedDateStr < todayStr) {
+                triggerToast("Cannot register bookings for past dates");
+                return;
+              }
               setNewBookingForm(prev => ({
                 ...prev,
                 bookingDate: selectedDateStr
@@ -493,10 +747,26 @@ export default function CalendarView() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
         {/* Left Column: Calendar Grid / List Agenda */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className="lg:col-span-7 space-y-6">
 
           {viewMode === 'grid' ? (
             <div className="bg-surface-container-lowest rounded-2xl shadow-sacred border border-outline-variant/30 p-4">
+              {/* Slots Availability Legend */}
+              <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 mb-4 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-low/30 px-4 py-2 rounded-xl border border-outline-variant/10">
+                <span className="text-[9px] text-on-surface-variant font-extrabold">Sevas Slots:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm" />
+                  <span>Available</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm" />
+                  <span>Partially Available</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm animate-pulse" />
+                  <span>Not Available</span>
+                </div>
+              </div>
 
               {/* Day Labels */}
               <div className="grid grid-cols-7 text-center font-sans text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2 border-b divider-gold pb-3">
@@ -516,30 +786,63 @@ export default function CalendarView() {
                   const isSelected = selectedDateStr === cell.dateStr;
                   const todayStr = formatDateString(new Date());
                   const isToday = todayStr === cell.dateStr;
+                  const availability = getDayAvailabilityStatus(cell.dateStr);
 
                   return (
                     <div
                       key={idx}
                       onClick={() => setSelectedDateStr(cell.dateStr)}
-                      className={`min-h-[90px] md:min-h-[110px] p-2 rounded-xl border flex flex-col justify-between transition-all select-none cursor-pointer ${cell.isCurrentMonth
+                      onDoubleClick={() => {
+                        if (cell.dateStr < todayStr) {
+                          triggerToast("Cannot register bookings for past dates");
+                          return;
+                        }
+                        setSelectedDateStr(cell.dateStr);
+                        setNewBookingForm(prev => ({
+                          ...prev,
+                          bookingDate: cell.dateStr
+                        }));
+                        setShowAddModal(true);
+                      }}
+                      className={`min-h-[55px] sm:min-h-[62px] md:min-h-[72px] lg:min-h-[80px] p-1.5 rounded-xl border flex flex-col justify-between transition-all select-none cursor-pointer border-t-4 ${availability.color === 'red'
+                        ? 'border-t-red-500'
+                        : availability.color === 'yellow'
+                          ? 'border-t-amber-400'
+                          : 'border-t-green-500'
+                        } ${cell.isCurrentMonth
                           ? isSelected
                             ? 'bg-primary-container/10 border-primary ring-1 ring-primary'
                             : 'bg-surface-container-low/50 border-outline-variant/20 hover:bg-surface-container-low hover:border-primary/30'
                           : 'bg-surface-container-lowest/20 border-outline-variant/10 text-on-surface-variant/40 hover:bg-surface-container-lowest/50'
                         }`}
+                      title={cell.dateStr < todayStr
+                        ? `Past date (View bookings only)`
+                        : `Double-click to register new seva booking \n(Slots Availability: ${availability.status})`
+                      }
                     >
                       {/* Date Indicator Header */}
                       <div className="flex justify-between items-center">
-                        <span
-                          className={`font-mono text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ${isToday
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`font-mono text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ${isToday
                               ? 'bg-primary text-on-primary shadow-sm font-extrabold'
                               : isSelected
                                 ? 'text-primary font-bold'
                                 : 'text-on-surface font-semibold'
-                            }`}
-                        >
-                          {cell.date.getDate()}
-                        </span>
+                              }`}
+                          >
+                            {cell.date.getDate()}
+                          </span>
+                          <span
+                            className={`w-2 h-2 rounded-full shrink-0 ${availability.color === 'red'
+                              ? 'bg-red-500 shadow-sm animate-pulse'
+                              : availability.color === 'yellow'
+                                ? 'bg-amber-400 shadow-sm'
+                                : 'bg-green-500 shadow-sm'
+                              }`}
+                            title={`Slots Availability: ${availability.status}`}
+                          />
+                        </div>
 
                         {/* Dot indicator for mobile */}
                         {dayBookings.length > 0 && (
@@ -548,10 +851,10 @@ export default function CalendarView() {
                               <span
                                 key={bIdx}
                                 className={`w-1 h-1 rounded-full ${b.paymentStatus === 'Paid'
-                                    ? 'bg-green-500'
-                                    : b.paymentStatus === 'Pending'
-                                      ? 'bg-amber-500'
-                                      : 'bg-red-500'
+                                  ? 'bg-green-500'
+                                  : b.paymentStatus === 'Pending'
+                                    ? 'bg-amber-500'
+                                    : 'bg-red-500'
                                   }`}
                               />
                             ))}
@@ -570,10 +873,10 @@ export default function CalendarView() {
                               setShowDetailModal(true);
                             }}
                             className={`px-1.5 py-0.5 rounded text-[9px] font-bold border truncate hover:scale-[1.02] transition-transform ${b.paymentStatus === 'Paid'
-                                ? 'bg-green-50 text-green-700 border-green-200'
-                                : b.paymentStatus === 'Pending'
-                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                  : 'bg-red-50 text-red-700 border-red-200'
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : b.paymentStatus === 'Pending'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-red-50 text-red-700 border-red-200'
                               }`}
                             title={`${b.devoteeName} - ${b.sevaName}`}
                           >
@@ -658,7 +961,7 @@ export default function CalendarView() {
         </div>
 
         {/* Right Column: Selected Day Agenda details / sidebar preview */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className="lg:col-span-5 space-y-6">
           <div className="bg-surface-container-lowest rounded-2xl shadow-sacred border border-outline-variant/30 p-6 space-y-4">
 
             {/* Header selection info */}
@@ -700,22 +1003,65 @@ export default function CalendarView() {
                       setActiveBooking(b);
                       setShowDetailModal(true);
                     }}
-                    className="p-3.5 bg-surface-container-low/40 border border-outline-variant/20 rounded-xl hover:bg-surface-container-low hover:border-primary/30 transition-all cursor-pointer group shadow-sm"
+                    className="p-4 bg-surface-container-low/40 border border-outline-variant/20 rounded-xl hover:bg-surface-container-low hover:border-primary/30 transition-all cursor-pointer group shadow-sm"
                   >
-                    <div className="flex justify-between items-start gap-2">
-                      <h4 className="font-bold text-xs text-on-surface truncate pr-1">{b.devoteeName}</h4>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold border shrink-0 ${getStatusColor(b.paymentStatus)}`}>
-                          {b.paymentStatus}
-                        </span>
-                        <span className="font-mono text-[9px] font-bold text-primary shrink-0">{b.receiptNo}</span>
+                    <div className="flex gap-3">
+                      {/* Devotee Initials Avatar Column */}
+                      <div className="shrink-0 flex flex-col items-center">
+                        <div className="w-9 h-9 rounded-full bg-primary-container/20 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm shadow-inner">
+                          {b.devoteeName.charAt(0)}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-primary text-[10px] font-bold mt-0.5">{b.sevaName}</div>
 
-                    <div className="flex justify-between items-center mt-3 pt-2.5 border-t border-outline-variant/10 text-[10px] text-on-surface-variant font-medium">
-                      <span className="flex items-center gap-0.5"><Clock size={9} /> {b.timeSlot}</span>
-                      <span className="font-bold text-on-surface">₹{b.amount}</span>
+                      {/* Main Details Column */}
+                      <div className="flex-grow min-w-0 space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h4 className="font-bold text-xs sm:text-sm text-on-surface truncate">{b.devoteeName}</h4>
+                            <div className="flex items-center gap-1.5 text-[9px] text-on-surface-variant font-medium mt-0.5">
+                              <span className="font-mono bg-surface-container-low px-1.5 py-0.5 rounded border border-outline-variant/30 text-on-surface-variant/70 font-semibold">{b.receiptNo}</span>
+                              <span>•</span>
+                              <span className="font-semibold text-primary">{b.paymentMode || 'Cash'}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span className="font-bold text-xs sm:text-sm text-on-surface">₹{b.amount}</span>
+                            <span className={`px-2 py-0.5 rounded text-[8px] font-bold border ${getStatusColor(b.paymentStatus)}`}>
+                              {b.paymentStatus}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="bg-surface-container-low/30 border border-outline-variant/15 p-2 rounded-lg space-y-1">
+                          <div className="text-primary text-[10px] sm:text-[11px] font-bold">{b.sevaName}</div>
+                          <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-on-surface-variant/80 font-medium">
+                            <Clock size={10} className="text-primary shrink-0" />
+                            <span>{sevas.find(s => s.name === b.sevaName)?.timeRange || b.timeSlot}</span>
+                          </div>
+                        </div>
+
+                        {b.assignedArchaka ? (
+                          <div className="flex items-center gap-2 text-[9px] sm:text-[10px] text-on-surface-variant font-semibold bg-primary/5 border border-primary/10 pl-1.5 pr-2.5 py-1 rounded-full w-fit shadow-xs">
+                            {b.assignedArchakaAvatar ? (
+                              <img 
+                                src={b.assignedArchakaAvatar} 
+                                alt={b.assignedArchaka} 
+                                className="w-5 h-5 rounded-full object-cover border border-primary/20 shadow-sm shrink-0"
+                              />
+                            ) : (
+                              <div className="w-5 h-5 rounded-full bg-primary-container/30 border border-primary/15 flex items-center justify-center text-primary font-bold text-[8px] shrink-0">
+                                {b.assignedArchaka.charAt(0)}
+                              </div>
+                            )}
+                            <span>Archaka: {b.assignedArchaka}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-on-surface-variant/40 font-medium px-2 py-1 bg-surface-container-low border border-outline-variant/10 rounded-full w-fit">
+                            <span className="material-symbols-outlined text-[12px] text-on-surface-variant/40">person_off</span>
+                            <span>No Archaka assigned</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -749,9 +1095,9 @@ export default function CalendarView() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out] p-4">
           <div className="absolute inset-0" onClick={() => setShowAddModal(false)} />
 
-          <div className="bg-surface-container-lowest w-full max-w-lg rounded-2xl shadow-2xl border border-outline-variant/30 overflow-hidden flex flex-col relative z-10 animate-[scaleIn_0.2s_ease-out]">
+          <div className="bg-surface-container-lowest w-full max-w-lg max-h-[90vh] rounded-2xl shadow-2xl border border-outline-variant/30 overflow-hidden flex flex-col relative z-10 animate-[scaleIn_0.2s_ease-out]">
             {/* Header */}
-            <div className="px-6 py-4 border-b divider-gold flex justify-between items-center bg-surface-container-low">
+            <div className="px-6 py-4 border-b divider-gold flex justify-between items-center bg-surface-container-low shrink-0">
               <div>
                 <h3 className="font-serif text-lg font-bold text-primary flex items-center gap-2">
                   <Calendar size={18} />
@@ -767,9 +1113,10 @@ export default function CalendarView() {
               </button>
             </div>
 
-            {/* Form body */}
-            <form onSubmit={handleAddBooking} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Form wrapper */}
+            <form onSubmit={handleAddBooking} className="flex flex-col flex-grow overflow-hidden">
+              <div className="p-6 space-y-4 overflow-y-auto flex-grow">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                 {/* Devotee Name */}
                 <div className="flex flex-col gap-1 sm:col-span-2">
@@ -870,11 +1217,7 @@ export default function CalendarView() {
                     value={newBookingForm.persons}
                     onChange={(e) => {
                       const p = Math.max(1, Number(e.target.value));
-                      setNewBookingForm(prev => ({
-                        ...prev,
-                        persons: p,
-                        amount: calculateBookingCost(prev.sevaName, p)
-                      }));
+                      handlePersonsCountChange(p);
                     }}
                     className="w-full px-3 py-2 bg-surface-container-low border border-outline rounded-xl text-xs focus:outline-none focus:border-primary"
                   />
@@ -886,6 +1229,7 @@ export default function CalendarView() {
                   <input
                     type="date"
                     required
+                    min={formatDateString(new Date())}
                     value={newBookingForm.bookingDate}
                     onChange={(e) => setNewBookingForm({ ...newBookingForm, bookingDate: e.target.value })}
                     className="w-full px-3 py-2 bg-surface-container-low border border-outline rounded-xl text-xs focus:outline-none"
@@ -903,9 +1247,18 @@ export default function CalendarView() {
                       value={newBookingForm.timeSlot}
                       onChange={(e) => setNewBookingForm({ ...newBookingForm, timeSlot: e.target.value })}
                       placeholder="e.g. 09:00 AM"
-                      className="w-full pl-9 pr-4 py-2.5 bg-surface-container-low border border-outline rounded-xl text-xs focus:outline-none"
+                      className={`w-full pl-9 pr-4 py-2.5 bg-surface-container-low border rounded-xl text-xs focus:outline-none transition-all ${
+                        newBookingForm.timeSlot && !isTimeSlotValid(newBookingForm.timeSlot)
+                          ? 'border-red-500 focus:border-red-600 bg-red-50/10'
+                          : 'border-outline focus:border-primary'
+                      }`}
                     />
                   </div>
+                  {newBookingForm.timeSlot && !isTimeSlotValid(newBookingForm.timeSlot) && (
+                    <span className="text-[9px] text-red-500 font-semibold pl-1 animate-[fadeIn_0.2s_ease-out]">
+                      Invalid format. Use &quot;hh:mm AM/PM&quot; (e.g. 09:30 AM).
+                    </span>
+                  )}
                 </div>
 
                 {/* Amount */}
@@ -921,6 +1274,110 @@ export default function CalendarView() {
                       className="w-full pl-7 pr-4 py-2 bg-surface-container-low border border-outline rounded-xl text-xs font-bold text-on-surface opacity-75 select-none"
                     />
                   </div>
+                  {(() => {
+                    const selectedSeva = sevas.find(s => s.name === newBookingForm.sevaName);
+                    if (!selectedSeva) return null;
+                    const basePersons = selectedSeva.personsPerSeva || 1;
+                    const extraCost = selectedSeva.extraPersonCost || 0;
+                    if (extraCost > 0) {
+                      return (
+                        <span className="text-[9px] text-primary font-semibold pl-1">
+                          Base includes {basePersons} {basePersons === 1 ? 'person' : 'persons'}. Extra persons charged at ₹{extraCost} each.
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+
+                {/* Dynamic Extra Pilgrims / Persons Section */}
+                <div className="sm:col-span-2 border-t border-outline-variant/10 pt-4 mt-2">
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-1.5">
+                      <Users size={14} className="text-primary" />
+                      <span className="text-[10px] font-bold text-on-surface uppercase tracking-wider">
+                        Pilgrims / Extra Persons ({newBookingForm.pilgrims?.length || 0})
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addPilgrimField}
+                      className="px-2.5 py-1 text-[10px] font-bold border border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus size={10} />
+                      Add Extra Person
+                    </button>
+                  </div>
+
+                  {/* Pilgrim input fields list */}
+                  {newBookingForm.pilgrims && newBookingForm.pilgrims.length > 0 ? (
+                    <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+                      {newBookingForm.pilgrims.map((p, idx) => (
+                        <div key={idx} className="bg-surface-container-low/40 border border-outline-variant/30 rounded-xl p-3 space-y-2.5 relative">
+                          <button
+                            type="button"
+                            onClick={() => removePilgrimField(idx)}
+                            className="absolute top-2 right-2 p-1 text-on-surface-variant hover:text-red-500 rounded-lg hover:bg-red-500/5 transition-colors cursor-pointer"
+                          >
+                            <X size={12} />
+                          </button>
+
+                          <div className="text-[10px] font-bold text-primary tracking-wide">
+                            Extra Person #{idx + 1}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            {/* Pilgrim Name */}
+                            <div className="flex flex-col gap-0.5">
+                              <label className="text-[9px] font-semibold text-on-surface-variant uppercase">Full Name</label>
+                              <input
+                                type="text"
+                                required
+                                value={p.name}
+                                onChange={(e) => updatePilgrimField(idx, 'name', e.target.value)}
+                                placeholder="Name"
+                                className="w-full px-2 py-1.5 bg-surface-container-low border border-outline rounded-lg text-xs focus:outline-none"
+                              />
+                            </div>
+
+                            {/* Pilgrim Gotra */}
+                            <div className="flex flex-col gap-0.5">
+                              <label className="text-[9px] font-semibold text-on-surface-variant uppercase">Gotra</label>
+                              <select
+                                value={p.gotra}
+                                onChange={(e) => updatePilgrimField(idx, 'gotra', e.target.value)}
+                                className="w-full px-2 py-1.5 bg-surface-container-low border border-outline rounded-lg text-xs focus:outline-none cursor-pointer"
+                              >
+                                {gotramsList.map(g => (
+                                  <option key={g} value={g}>{g}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Pilgrim Nakshatra */}
+                            <div className="flex flex-col gap-0.5">
+                              <label className="text-[9px] font-semibold text-on-surface-variant uppercase">Nakshatra</label>
+                              <select
+                                value={p.nakshetra}
+                                onChange={(e) => updatePilgrimField(idx, 'nakshetra', e.target.value)}
+                                className="w-full px-2 py-1.5 bg-surface-container-low border border-outline rounded-lg text-xs focus:outline-none cursor-pointer"
+                              >
+                                {nakshatramsList.map(n => (
+                                  <option key={n} value={n}>{n}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 border border-dashed border-outline-variant/30 rounded-xl bg-surface-container-low/20">
+                      <span className="text-[10px] text-on-surface-variant/60 font-medium">
+                        No extra persons added yet. Click &apos;Add Extra Person&apos; or change the persons count to add.
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Status Selection */}
@@ -939,6 +1396,50 @@ export default function CalendarView() {
                     </select>
                   </div>
                 </div>
+
+                {/* Mode of Payment */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Mode of Payment</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-2.5 text-primary text-[16px]">payments</span>
+                    <select
+                      value={newBookingForm.paymentMode || 'Cash'}
+                      onChange={(e) => setNewBookingForm({ ...newBookingForm, paymentMode: e.target.value as Booking['paymentMode'] })}
+                      className="w-full pl-9 pr-4 py-2.5 bg-surface-container-low border border-outline rounded-xl text-xs focus:outline-none appearance-none cursor-pointer font-bold text-on-surface-variant"
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="UPI">UPI</option>
+                      <option value="Card">Card</option>
+                      <option value="Net Banking">Net Banking</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Assign Archaka (Optional) */}
+                <div className="flex flex-col gap-1 sm:col-span-2">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Assign Archaka (Optional)</label>
+                  <div className="relative">
+                    <User size={13} className="absolute left-3 top-3.5 text-primary" />
+                    <select
+                      value={newBookingForm.assignedArchakaId || ''}
+                      onChange={(e) => setNewBookingForm({ ...newBookingForm, assignedArchakaId: e.target.value })}
+                      className="w-full pl-9 pr-4 py-2.5 bg-surface-container-low border border-outline rounded-xl text-xs focus:outline-none appearance-none cursor-pointer font-bold text-on-surface-variant"
+                    >
+                      <option value="">-- Unassigned --</option>
+                      {archakas.map(a => (
+                        <option key={a.id} value={a.id}>{a.name} ({a.role})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Conflict warning banner */}
+                {conflictWarning && (
+                  <div className="flex items-center gap-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-800 text-[11px] p-3.5 rounded-xl sm:col-span-2">
+                    <span className="material-symbols-outlined text-[18px] text-amber-700 shrink-0">warning</span>
+                    <span className="font-bold">{conflictWarning}</span>
+                  </div>
+                )}
 
                 {/* Dynamic Info Cards from Selected Seva */}
                 {sevas.find(s => s.name === newBookingForm.sevaName)?.aboutSeva && (
@@ -960,9 +1461,10 @@ export default function CalendarView() {
                 )}
 
               </div>
+            </div>
 
-              {/* Action Buttons */}
-              <div className="border-t divider-gold pt-4 flex justify-end gap-3 bg-surface-container-lowest">
+            {/* Action Buttons */}
+              <div className="border-t divider-gold px-6 py-4 flex justify-end gap-3 bg-surface-container-low shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
@@ -972,6 +1474,15 @@ export default function CalendarView() {
                 </button>
                 <button
                   type="submit"
+                  onClick={() => { (window as any)._shouldPrintOnSubmit = true; }}
+                  className="px-4 py-2 bg-[#8F4E00] hover:bg-[#7a4300] text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Printer size={13} />
+                  <span>Generate & Print</span>
+                </button>
+                <button
+                  type="submit"
+                  onClick={() => { (window as any)._shouldPrintOnSubmit = false; }}
                   className="px-5 py-2 bg-primary hover:bg-on-primary-container text-on-primary text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-1"
                 >
                   <Check size={14} />
@@ -1055,6 +1566,33 @@ export default function CalendarView() {
                   <span className="font-bold text-on-surface text-sm">₹{activeBooking.amount}</span>
                 </div>
 
+                {/* Payment Mode */}
+                <div className="flex justify-between border-b border-outline-variant/10 pb-2">
+                  <span className="text-on-surface-variant font-medium">Mode of Payment</span>
+                  <span className="font-bold text-on-surface">{activeBooking.paymentMode || 'Cash'}</span>
+                </div>
+
+                {/* Assigned Archaka */}
+                <div className="flex justify-between border-b border-outline-variant/10 pb-2 items-center">
+                  <span className="text-on-surface-variant font-medium">Assigned Archaka</span>
+                  <div className="flex items-center gap-2">
+                    {activeBooking.assignedArchaka ? (
+                      <>
+                        {activeBooking.assignedArchakaAvatar && (
+                          <img 
+                            src={activeBooking.assignedArchakaAvatar} 
+                            alt={activeBooking.assignedArchaka} 
+                            className="w-5 h-5 rounded-full object-cover border border-primary/20 shadow-sm"
+                          />
+                        )}
+                        <span className="font-bold text-on-surface">{activeBooking.assignedArchaka}</span>
+                      </>
+                    ) : (
+                      <span className="font-medium text-on-surface-variant/60 italic">Unassigned</span>
+                    )}
+                  </div>
+                </div>
+
                 {/* Status Updater */}
                 <div className="flex justify-between items-center pt-2">
                   <span className="text-on-surface-variant font-medium">Edit status</span>
@@ -1076,7 +1614,15 @@ export default function CalendarView() {
               </div>
 
               {/* Actions */}
-              <div className="border-t divider-gold pt-4 flex justify-end">
+              <div className="border-t divider-gold pt-4 flex justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => triggerPrint(activeBooking)}
+                  className="px-4 py-2 bg-[#8F4E00] hover:bg-[#7a4300] text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Printer size={13} />
+                  <span>Print Slip</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setShowDetailModal(false)}

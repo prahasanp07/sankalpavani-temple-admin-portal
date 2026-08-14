@@ -83,7 +83,7 @@ export default function Settings() {
               <div className="flex justify-between items-center">
                 <div>
                   <h4 className="text-on-surface">End-of-day Roster Digest</h4>
-                  <p className="text-xs text-on-surface-variant">Dispatches tomorrow&apos;s duty roster to assigned priests at 8:00 PM.</p>
+                  <p className="text-xs text-on-surface-variant">Dispatches tomorrow&apos;s duty roster to assigned archakas at 8:00 PM.</p>
                 </div>
                 <input 
                   type="checkbox" 

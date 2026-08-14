@@ -157,7 +157,7 @@ export default function Page() {
     setNavigationState(prev => ({
       activeTab: tab,
       parentTab: parentTabOverride ?? (
-        ['priest_master', 'seva_master', 'temple_info', 'temple_facilities', 'scheduling'].includes(tab) ? 'masters_hub' : null
+        ['archaka_master', 'seva_master', 'temple_info', 'temple_facilities', 'scheduling'].includes(tab) ? 'masters_hub' : null
       )
     }));
   };
@@ -194,7 +194,7 @@ export default function Page() {
     switch (activeTab) {
       case 'dashboard': return 'Temple-1 Administrative Dashboard';
       case 'masters_hub': return 'Structural Masters Hub';
-      case 'priest_master': return 'Acharyas & Priests Registry';
+      case 'archaka_master': return 'Acharyas & Archakas Registry';
       case 'seva_master': return 'Seva offerings Setup';
       case 'temple_info': return 'Temple Parameters';
       case 'temple_facilities': return 'Temple Facilities';
@@ -335,32 +335,15 @@ export default function Page() {
             <DashboardPortal onNavigate={handleNavigate} />
           )}
 
-          {activeTab === 'masters_hub' && (
-            <MastersHub onNavigate={handleNavigate} />
-          )}
-
-          {activeTab === 'priest_master' && (
-            <PriestMaster onBack={() => handleNavigate(parentTab || 'masters_hub')} />
-          )}
-
-          {activeTab === 'seva_master' && (
-            <SevaMaster onBack={() => handleNavigate(parentTab || 'masters_hub')} />
-          )}
-
-          {activeTab === 'temple_info' && (
-            <TempleInfo onBack={() => handleNavigate(parentTab || 'masters_hub')} />
-          )}
-
-          {activeTab === 'temple_facilities' && (
-            <TempleFacilities onBack={() => handleNavigate(parentTab || 'masters_hub')} />
+          {['masters_hub', 'temple_info', 'seva_master', 'temple_facilities', 'archaka_master', 'scheduling'].includes(activeTab) && (
+            <MastersHub 
+              activeSubTab={activeTab === 'masters_hub' ? 'temple_info' : activeTab} 
+              onNavigate={handleNavigate} 
+            />
           )}
 
           {activeTab === 'transactions' && (
             <Transactions />
-          )}
-
-          {activeTab === 'scheduling' && (
-            <Scheduling onBack={() => handleNavigate(parentTab || 'masters_hub')} />
           )}
 
           {activeTab === 'prasadam' && (

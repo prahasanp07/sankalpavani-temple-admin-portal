@@ -12,7 +12,8 @@ import {
   ChevronRight,
   UserCheck,
   Plus,
-  X
+  X,
+  Search
 } from 'lucide-react';
 
 interface Shift {
@@ -21,6 +22,7 @@ interface Shift {
   sevaName: string;
   date: string;
   slot: 'Morning (06:00 AM)' | 'Noon (11:00 AM)' | 'Evening (05:00 PM)';
+  isDraft?: boolean;
 }
 
 interface SchedulingProps {
@@ -48,14 +50,67 @@ export default function Scheduling({ onBack }: SchedulingProps) {
     return INITIAL_SHIFTS;
   });
   
-  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showAssignForm, setShowAssignForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState('2026-06-28');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const [rosterSearch, setRosterSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'On Leave'>('All');
+
+  const DEFAULT_PRIESTS = [
+    { name: 'Raghavan Bhattar', role: 'Chief Archaka', status: 'Active', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200' },
+    { name: 'Sunder Raman', role: 'Second Priest', status: 'Active', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200' },
+    { name: 'Madhavan Shastri', role: 'Purohit', status: 'Active', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200' },
+    { name: 'Vasudevan Swamy', role: 'Assistant Priest', status: 'On Leave', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200' },
+    { name: 'Ganesha Dikshidar', role: 'Rigveda Scholar', status: 'Active', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200' }
+  ];
+
+  const getWeekDates = (dateStr: string) => {
+    // If selectedDate is invalid, default to '2026-06-28'
+    let baseDate = new Date(dateStr);
+    if (isNaN(baseDate.getTime())) {
+      baseDate = new Date('2026-06-28');
+    }
+    const dayOfWeek = baseDate.getDay(); // 0 for Sunday
+    const sunday = new Date(baseDate);
+    sunday.setDate(baseDate.getDate() - dayOfWeek);
+
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(sunday);
+      d.setDate(sunday.getDate() + i);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      dates.push({
+        name: dayNames[i],
+        dateNum: d.getDate(),
+        formattedDate: `${dd} ${monthNames[d.getMonth()]}`,
+        value: `${yyyy}-${mm}-${dd}`
+      });
+    }
+    return dates;
+  };
   // Form states
   const [formPriest, setFormPriest] = useState('Raghavan Bhattar');
   const [formSeva, setFormSeva] = useState('Archana Pooja');
   const [formSlot, setFormSlot] = useState<Shift['slot']>('Morning (06:00 AM)');
+
+  const [priestsData, setPriestsData] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cachedPriests = localStorage.getItem('sankalpvani_priests');
+      if (cachedPriests) {
+        try {
+          return JSON.parse(cachedPriests);
+        } catch (e) {}
+      }
+    }
+    return [];
+  });
 
   const [activePriests, setActivePriests] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
@@ -70,16 +125,54 @@ export default function Scheduling({ onBack }: SchedulingProps) {
     return ['Raghavan Bhattar', 'Sunder Raman', 'Madhavan Shastri', 'Vasudevan Swamy', 'Ganesha Dikshidar'];
   });
 
-  // Load from LocalStorage
-  // (State synchronization handled gracefully on mount via lazy initialization)
+  useEffect(() => {
+    const loadPriests = () => {
+      const cachedPriests = localStorage.getItem('sankalpvani_priests');
+      if (cachedPriests) {
+        try {
+          const parsed = JSON.parse(cachedPriests);
+          setPriestsData(parsed);
+          setActivePriests(parsed.map((p: any) => p.name));
+          if (parsed.length > 0 && !parsed.map((p: any) => p.name).includes(formPriest)) {
+            setFormPriest(parsed[0].name);
+          }
+        } catch (e) {}
+      }
+    };
+    loadPriests();
+    window.addEventListener('sankalpvani_priests_updated', loadPriests);
+    return () => window.removeEventListener('sankalpvani_priests_updated', loadPriests);
+  }, [formPriest]);
 
-  const handleAssign = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const displayPriests = priestsData.length > 0 
+    ? priestsData.map((p, idx) => ({
+        ...p,
+        role: p.role || (idx === 0 ? 'Chief Archaka' : 'Archaka'),
+        avatar: p.avatar || DEFAULT_PRIESTS[idx % DEFAULT_PRIESTS.length].avatar
+      }))
+    : DEFAULT_PRIESTS;
+
+  const filteredPriests = displayPriests.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(rosterSearch.toLowerCase()) ||
+                          p.role.toLowerCase().includes(rosterSearch.toLowerCase());
+    const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const weekDays = getWeekDates(selectedDate);
+
+  const handleCreateShift = (publish: boolean) => {
     // Check for double assignment conflict (same priest, same date, same slot)
     const conflict = shifts.find(s => s.priestName === formPriest && s.date === selectedDate && s.slot === formSlot);
     if (conflict) {
       alert(`Conflict Detected! Acharya ${formPriest} is already assigned to "${conflict.sevaName}" during ${formSlot} on this date.`);
+      return;
+    }
+
+    // Check if the priest is currently marked "On Leave" in the Priest registry
+    const priestRecord = priestsData.find(p => p.name === formPriest);
+    if (priestRecord?.status === 'On Leave') {
+      alert(`Cannot Assign Duty! Acharya ${formPriest} is currently marked "On Leave" in the Archakas Registry.`);
       return;
     }
 
@@ -88,20 +181,26 @@ export default function Scheduling({ onBack }: SchedulingProps) {
       priestName: formPriest,
       sevaName: formSeva,
       date: selectedDate,
-      slot: formSlot
+      slot: formSlot,
+      isDraft: !publish
     };
 
     const updated = [...shifts, newShift];
     setShifts(updated);
     localStorage.setItem('sankalpvani_shifts', JSON.stringify(updated));
-    setShowAssignModal(false);
+    setShowAssignForm(false);
     
-    setToastMessage(`Assigned Acharya ${formPriest} successfully.`);
+    setToastMessage(publish ? `Assigned and published shift for Acharya ${formPriest}.` : `Saved shift draft for Acharya ${formPriest}.`);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const handleAssign = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleCreateShift(true);
+  };
+
   const handleDeleteShift = (id: string) => {
-    if (confirm('Cancel this priest assignment?')) {
+    if (confirm('Cancel this archaka assignment?')) {
       const updated = shifts.filter(s => s.id !== id);
       setShifts(updated);
       localStorage.setItem('sankalpvani_shifts', JSON.stringify(updated));
@@ -141,16 +240,16 @@ export default function Scheduling({ onBack }: SchedulingProps) {
               <ChevronRight size={12} className="text-on-surface-variant" />
               <span>Roster & Scheduling</span>
             </div>
-            <h2 className="font-serif text-3xl font-semibold text-primary">Priest Duty Roster</h2>
+            <h2 className="font-serif text-3xl font-semibold text-primary">Archakas Duty Roster</h2>
           </div>
         </div>
 
         <button
-          onClick={() => setShowAssignModal(true)}
-          className="bg-primary hover:bg-on-primary-container text-on-primary text-sm font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+          onClick={() => setShowAssignForm(!showAssignForm)}
+          className="bg-primary hover:bg-on-primary-container text-on-primary text-sm font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95"
         >
           <Plus size={16} />
-          <span>Assign Duty Shift</span>
+          <span>{showAssignForm ? 'Close Assignment Form' : 'Assign Duty Shift'}</span>
         </button>
       </div>
 
@@ -160,175 +259,281 @@ export default function Scheduling({ onBack }: SchedulingProps) {
         <div>
           <h4 className="text-xs font-bold uppercase tracking-wider">Automated Conflict Safeguards</h4>
           <p className="font-sans text-xs mt-0.5 leading-relaxed">
-            The scheduling engine guards against dual-booking of priests for concurrent sevas or while they are marked &quot;On Leave&quot; in the Priest Master.
+            The scheduling engine guards against dual-booking of archakas for concurrent sevas or while they are marked &quot;On Leave&quot; in the Archakas Registry.
           </p>
         </div>
       </div>
 
-      {/* Calendar Columns Grid layout */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {calendarDates.map((d) => {
-          const dateShifts = shifts.filter(s => s.date === d.value);
-          return (
-            <div key={d.value} className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden shadow-sacred flex flex-col min-h-[350px]">
-              <div className="bg-surface-container px-4 py-3.5 border-b divider-gold flex justify-between items-center">
-                <span className="font-serif font-bold text-on-surface">{d.label}</span>
-                <span className="px-2 py-0.5 rounded-full bg-primary-container/20 text-[10px] font-bold text-primary">
-                  {dateShifts.length} Assigned
-                </span>
-              </div>
+      {/* Inline Shift Assignment Form */}
+      {showAssignForm && (
+        <form onSubmit={handleAssign} className="bg-surface-container rounded-2xl p-6 border border-outline-variant/30 shadow-sm space-y-4 animate-[scaleIn_0.15s_ease-out]">
+          <h3 className="font-serif text-xl font-bold text-primary flex items-center gap-2">
+            <Calendar size={18} className="text-primary" />
+            Assign Archaka Duty Shift
+          </h3>
 
-              <div className="p-4 space-y-3.5 flex-1 overflow-y-auto">
-                {dateShifts.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-on-surface-variant opacity-70">
-                    <Calendar size={32} className="text-outline-variant mb-2" />
-                    <p className="font-sans text-xs font-semibold">No assigned priests for today.</p>
-                  </div>
-                ) : (
-                  dateShifts.map((shift) => (
-                    <div 
-                      key={shift.id}
-                      className="group bg-surface-container-low border border-outline-variant/30 hover:border-primary/30 p-3 rounded-xl transition-all duration-150 relative"
-                    >
-                      <button
-                        onClick={() => handleDeleteShift(shift.id)}
-                        className="absolute right-2 top-2 p-1 hover:bg-red-50 text-red-700 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                        title="Cancel Duty"
-                      >
-                        <X size={12} />
-                      </button>
-
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <div className="w-5 h-5 rounded-full bg-primary-container/20 flex items-center justify-center text-primary text-[10px]">
-                          <User size={10} />
-                        </div>
-                        <span className="font-sans text-xs font-bold text-on-surface">{shift.priestName}</span>
-                      </div>
-
-                      <div className="space-y-1 font-sans text-[11px] font-semibold text-on-surface-variant">
-                        <div className="flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[12px] text-primary">menu_book</span>
-                          <span>{shift.sevaName}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-[10px] text-secondary">
-                          <Clock size={10} />
-                          <span>{shift.slot.split(' ')[0]}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Bottom Card CTA */}
-              <div className="p-4 border-t border-outline-variant/10">
-                <button
-                  onClick={() => {
-                    setSelectedDate(d.value);
-                    setShowAssignModal(true);
-                  }}
-                  className="w-full py-2 bg-surface-container hover:bg-primary hover:text-on-primary border border-outline-variant text-on-surface-variant rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
-                >
-                  <Plus size={12} />
-                  <span>Quick Assign</span>
-                </button>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Target Date</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border border-outline rounded-xl text-sm focus:outline-none focus:border-primary"
+              />
             </div>
-          );
-        })}
-      </div>
 
-      {/* Assign Shift Modal Popup dialog */}
-      {showAssignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
-            onClick={() => setShowAssignModal(false)}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-          />
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Choose Archaka *</label>
+              <select
+                value={formPriest}
+                onChange={(e) => setFormPriest(e.target.value)}
+                className={`w-full px-3.5 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:border-primary ${
+                  (priestsData.find(p => p.name === formPriest)?.status === 'On Leave' || 
+                   shifts.some(s => s.priestName === formPriest && s.date === selectedDate && s.slot === formSlot))
+                    ? 'border-error text-error focus:border-error focus:ring-error'
+                    : 'border-outline'
+                }`}
+              >
+                {activePriests.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              {priestsData.find(p => p.name === formPriest)?.status === 'On Leave' && (
+                <p className="text-[11px] text-error font-semibold mt-1">Archaka is marked "On Leave".</p>
+              )}
+              {shifts.some(s => s.priestName === formPriest && s.date === selectedDate && s.slot === formSlot) && (
+                <p className="text-[11px] text-error font-semibold mt-1">Archaka is already busy at this time.</p>
+              )}
+            </div>
 
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border-t-4 border-primary p-6 animate-[scaleIn_0.2s_ease-out]">
-            <button 
-              onClick={() => setShowAssignModal(false)}
-              className="absolute right-4 top-4 p-2 hover:bg-surface-container-low text-on-surface-variant rounded-full transition-colors cursor-pointer"
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Target Seva Pooja</label>
+              <select
+                value={formSeva}
+                onChange={(e) => setFormSeva(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border border-outline rounded-xl text-sm focus:outline-none focus:border-primary"
+              >
+                <option value="Archana Pooja">Archana Pooja</option>
+                <option value="Maha Abhisheka">Maha Abhisheka</option>
+                <option value="Annadanam Seva">Annadanam Seva</option>
+                <option value="Vahan Pooja">Vahan Pooja</option>
+                <option value="Chandi Homa">Chandi Homa</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Shift Time Slot</label>
+              <select
+                value={formSlot}
+                onChange={(e) => setFormSlot(e.target.value as Shift['slot'])}
+                className="w-full px-3.5 py-2.5 bg-white border border-outline rounded-xl text-sm focus:outline-none focus:border-primary"
+              >
+                <option value="Morning (06:00 AM)">Morning (06:00 AM)</option>
+                <option value="Noon (11:00 AM)">Noon (11:00 AM)</option>
+                <option value="Evening (05:00 PM)">Evening (05:00 PM)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t divider-gold flex justify-end gap-3">
+            <button
+              type="button"
+              disabled={
+                priestsData.find(p => p.name === formPriest)?.status === 'On Leave' || 
+                shifts.some(s => s.priestName === formPriest && s.date === selectedDate && s.slot === formSlot)
+              }
+              onClick={() => handleCreateShift(false)}
+              className="px-4 py-2.5 bg-surface-container-low hover:bg-primary-container/10 border border-outline-variant/40 text-on-surface-variant hover:text-primary text-xs font-bold rounded-xl shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <X size={18} />
+              Save as Draft
             </button>
+            <button
+              type="button"
+              disabled={
+                priestsData.find(p => p.name === formPriest)?.status === 'On Leave' || 
+                shifts.some(s => s.priestName === formPriest && s.date === selectedDate && s.slot === formSlot)
+              }
+              onClick={() => handleCreateShift(true)}
+              className="px-5 py-2.5 bg-primary hover:bg-on-primary-container text-on-primary text-xs font-bold rounded-xl shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Save & Publish
+            </button>
+          </div>
+        </form>
+      )}
 
-            <h3 className="font-serif text-2xl text-primary font-bold mb-4">Assign Priest Shift</h3>
+      {/* Roster Search and Filters Row */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant/30 shadow-sacred">
+        <div className="flex flex-1 items-center gap-3 max-w-md bg-surface-container-low border border-outline-variant/50 rounded-xl px-4.5 py-2.5">
+          <Search size={18} className="text-on-surface-variant" />
+          <input
+            type="text"
+            placeholder="Search archakas or roles..."
+            value={rosterSearch}
+            onChange={(e) => setRosterSearch(e.target.value)}
+            className="w-full bg-transparent text-sm font-medium focus:outline-none text-on-surface placeholder:text-on-surface-variant/60"
+          />
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-3.5">
+          <div className="flex rounded-xl bg-surface-container-low p-1 border border-outline-variant/30">
+            <button
+              type="button"
+              onClick={() => setStatusFilter('All')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${statusFilter === 'All' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-primary'}`}
+            >
+              All Archakas
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('Active')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${statusFilter === 'Active' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-primary'}`}
+            >
+              Active
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('On Leave')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${statusFilter === 'On Leave' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-primary'}`}
+            >
+              On Leave
+            </button>
+          </div>
 
-            <form onSubmit={handleAssign} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Target Date</label>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-surface-container-low border border-outline rounded-xl text-sm focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Choose Priest Acharya *</label>
-                <select
-                  value={formPriest}
-                  onChange={(e) => setFormPriest(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-surface-container-low border border-outline rounded-xl text-sm focus:outline-none"
-                >
-                  {activePriests.map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Target Seva Pooja</label>
-                  <select
-                    value={formSeva}
-                    onChange={(e) => setFormSeva(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-surface-container-low border border-outline rounded-xl text-sm focus:outline-none"
-                  >
-                    <option value="Archana Pooja">Archana Pooja</option>
-                    <option value="Maha Abhisheka">Maha Abhisheka</option>
-                    <option value="Annadanam Seva">Annadanam Seva</option>
-                    <option value="Vahan Pooja">Vahan Pooja</option>
-                    <option value="Chandi Homa">Chandi Homa</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Shift Time Slot</label>
-                  <select
-                    value={formSlot}
-                    onChange={(e) => setFormSlot(e.target.value as Shift['slot'])}
-                    className="w-full px-3.5 py-2.5 bg-surface-container-low border border-outline rounded-xl text-sm focus:outline-none"
-                  >
-                    <option value="Morning (06:00 AM)">Morning (06:00 AM)</option>
-                    <option value="Noon (11:00 AM)">Noon (11:00 AM)</option>
-                    <option value="Evening (05:00 PM)">Evening (05:00 PM)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t divider-gold flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAssignModal(false)}
-                  className="px-4 py-2 border border-outline-variant/60 hover:bg-surface-container-low text-on-surface-variant rounded-xl text-xs font-bold cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-primary hover:bg-on-primary-container text-on-primary rounded-xl text-xs font-bold shadow-sm cursor-pointer"
-                >
-                  Commit Shift
-                </button>
-              </div>
-            </form>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Week Base Date:</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-surface-container-low border border-outline-variant/50 rounded-xl px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary"
+            />
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Roster Table Grid layout */}
+      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden shadow-sacred">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[1100px]">
+            <thead>
+              <tr className="bg-surface-container border-b border-outline-variant/30 text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                <th className="py-4 px-6 w-64">Employee</th>
+                {weekDays.map((day) => (
+                  <th key={day.value} className="py-4 px-4 text-center border-l border-outline-variant/10">
+                    <div>{day.name}</div>
+                    <div className="text-[10px] text-on-surface-variant/70 normal-case mt-0.5">{day.formattedDate}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/15 text-sm font-medium text-on-surface">
+              {filteredPriests.map((priest) => {
+                return (
+                  <tr key={priest.name} className="hover:bg-surface-container-low/20 transition-colors">
+                    {/* Employee Profile Cell */}
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={priest.avatar}
+                          alt={priest.name}
+                          className="w-10 h-10 rounded-full object-cover border border-outline-variant/40 shadow-sm"
+                        />
+                        <div>
+                          <h4 className="font-sans text-sm font-bold text-on-surface leading-tight">{priest.name}</h4>
+                          <span className="text-[11px] text-on-surface-variant font-semibold mt-0.5 block">{priest.role}</span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* 7 Days Columns */}
+                    {weekDays.map((day) => {
+                      const dayShifts = shifts.filter(s => s.priestName === priest.name && s.date === day.value);
+                      const isPriestOnLeave = priest.status === 'On Leave';
+                      const hasShifts = dayShifts.length > 0;
+
+                      return (
+                        <td
+                          key={day.value}
+                          onDoubleClick={() => {
+                            setSelectedDate(day.value);
+                            setFormPriest(priest.name);
+                            setShowAssignForm(true);
+                          }}
+                          className={`py-4 px-3 text-center align-top min-h-[100px] border-l border-outline-variant/10 relative cursor-pointer select-none transition-all ${
+                            !hasShifts && !isPriestOnLeave
+                              ? 'bg-[repeating-linear-gradient(45deg,rgba(0,0,0,0.015),rgba(0,0,0,0.015)_6px,transparent_6px,transparent_12px)] hover:bg-surface-container-low/20'
+                              : 'hover:bg-surface-container-low/20'
+                          }`}
+                          title="Double-click to assign shift"
+                        >
+                          {/* Date number label inside cell */}
+                          <div className="flex justify-between items-center text-[10px] font-bold text-on-surface-variant/40 mb-2">
+                            <span>{day.dateNum}</span>
+                          </div>
+
+                          {isPriestOnLeave ? (
+                            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200/50 shadow-sm">
+                              <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                              <span>Leave</span>
+                            </div>
+                          ) : hasShifts ? (
+                            <div className="flex flex-col gap-2">
+                              {dayShifts.map((shift) => {
+                                const isMorning = shift.slot.includes('Morning');
+                                const isNoon = shift.slot.includes('Noon');
+                                const bgClass = isMorning
+                                  ? 'bg-green-50 text-green-700 border-green-200/50 hover:bg-green-100/50'
+                                  : isNoon
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200/50 hover:bg-amber-100/50'
+                                  : 'bg-indigo-50 text-indigo-700 border-indigo-200/50 hover:bg-indigo-100/50';
+                                
+                                return (
+                                  <div
+                                    key={shift.id}
+                                    className={`group/item border p-2 rounded-xl text-left relative transition-all shadow-sm ${bgClass}`}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteShift(shift.id)}
+                                      className="absolute right-1 top-1 p-0.5 bg-white text-red-600 rounded-full opacity-0 group-hover/item:opacity-100 transition-opacity cursor-pointer shadow-sm border border-red-100"
+                                      title="Cancel Shift"
+                                    >
+                                      <X size={10} />
+                                    </button>
+
+                                    <div className="font-bold text-[11px] leading-tight pr-3 truncate" title={shift.sevaName}>
+                                      {shift.sevaName}
+                                    </div>
+                                    <div className="text-[9px] font-semibold opacity-85 mt-1 flex items-center gap-1">
+                                      <Clock size={8} />
+                                      <span>{shift.slot.split(' ')[0]}</span>
+                                      {shift.isDraft && (
+                                        <span className="px-1 py-0 rounded bg-amber-500/10 text-amber-700 border border-amber-500/20 text-[8px] font-bold">
+                                          Draft
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-[10px] font-bold text-on-surface-variant/20 italic select-none">Off</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
     </div>
   );
 }

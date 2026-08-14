@@ -1,11 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Clock, Smile } from 'lucide-react';
-
-const HOUR_OPTIONS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
-const MERIDIAN_OPTIONS = ['AM', 'PM'];
+import React from 'react';
+import { Clock, Smile, ChevronUp, ChevronDown } from 'lucide-react';
 
 const normalizeTime = (timeStr: string) => {
   if (!timeStr) return '06:00 AM';
@@ -42,88 +38,142 @@ const parseTime = (timeStr: string) => {
   return { hour: 6, minute: 0, meridian: 'AM' as const };
 };
 
-interface WheelColumnProps {
-  options: string[];
-  value: string;
-  onChange: (val: string) => void;
+interface TimeInputSegmentProps {
+  label: string;
+  hour: number;
+  minute: number;
+  meridian: 'AM' | 'PM';
+  onChange: (h: number, m: number, merid: 'AM' | 'PM') => void;
+  disabled?: boolean;
 }
 
-function WheelColumn({ options, value, onChange }: WheelColumnProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isScrollingRef = useRef(false);
+function TimeInputSegment({ label, hour, minute, meridian, onChange, disabled }: TimeInputSegmentProps) {
+  const handleHourChange = (valStr: string) => {
+    let val = parseInt(valStr.replace(/\D/g, ''), 10);
+    if (isNaN(val)) val = 12;
+    if (val < 1) val = 1;
+    if (val > 12) val = 12;
+    onChange(val, minute, meridian);
+  };
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+  const handleMinuteChange = (valStr: string) => {
+    let val = parseInt(valStr.replace(/\D/g, ''), 10);
+    if (isNaN(val)) val = 0;
+    if (val < 0) val = 0;
+    if (val > 59) val = 59;
+    onChange(hour, val, meridian);
+  };
 
-    const index = options.indexOf(value);
-    if (index === -1) return;
+  const incrementHour = () => {
+    let next = hour + 1;
+    if (next > 12) next = 1;
+    onChange(next, minute, meridian);
+  };
 
-    const targetScroll = index * 32;
+  const decrementHour = () => {
+    let prev = hour - 1;
+    if (prev < 1) prev = 12;
+    onChange(prev, minute, meridian);
+  };
 
-    if (Math.abs(container.scrollTop - targetScroll) > 1) {
-      if (!isScrollingRef.current) {
-        container.scrollTo({
-          top: targetScroll,
-          behavior: 'smooth'
-        });
-      } else {
-        container.scrollTop = targetScroll;
-      }
-    }
-  }, [value, options]);
+  const incrementMinute = () => {
+    let next = minute + 1;
+    if (next > 59) next = 0;
+    onChange(hour, next, meridian);
+  };
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const container = e.currentTarget;
-    isScrollingRef.current = true;
+  const decrementMinute = () => {
+    let prev = minute - 1;
+    if (prev < 0) prev = 59;
+    onChange(hour, prev, meridian);
+  };
 
-    const scrollTop = container.scrollTop;
-    const index = Math.round(scrollTop / 32);
-
-    if ((container as any).timeoutId) {
-      clearTimeout((container as any).timeoutId);
-    }
-
-    (container as any).timeoutId = setTimeout(() => {
-      if (index >= 0 && index < options.length) {
-        const selected = options[index];
-        if (selected !== value) {
-          onChange(selected);
-        }
-      }
-      setTimeout(() => {
-        isScrollingRef.current = false;
-      }, 100);
-    }, 80);
+  const toggleMeridian = () => {
+    const nextMerid = meridian === 'AM' ? 'PM' : 'AM';
+    onChange(hour, minute, nextMerid);
   };
 
   return (
-    <div className="relative flex-1 h-[160px] flex justify-center">
-      <div
-        ref={containerRef}
-        onScroll={handleScroll}
-        className="w-full h-full overflow-y-auto snap-y snap-mandatory scrollbar-none py-[64px] flex flex-col items-center"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      >
-        {options.map((opt) => {
-          const isSelected = opt === value;
-          return (
+    <div className="flex flex-col gap-1 min-w-0">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80 truncate">{label}</span>
+      <div className="flex items-center gap-1">
+        {/* Hour Input with custom up/down arrows */}
+        <div className={`flex items-center bg-surface-container-low border border-outline rounded-xl px-1.5 py-0.5 gap-1 transition-all ${disabled ? 'opacity-50 pointer-events-none' : 'focus-within:border-primary focus-within:ring-1 focus-within:ring-primary'}`}>
+          <input
+            type="text"
+            maxLength={2}
+            disabled={disabled}
+            value={String(hour).padStart(2, '0')}
+            onChange={(e) => handleHourChange(e.target.value)}
+            className="w-5 text-center bg-transparent border-none outline-none font-mono text-xs font-bold text-on-surface p-0"
+          />
+          <div className="flex flex-col -gap-0.5">
             <button
-              key={opt}
               type="button"
-              onClick={() => {
-                onChange(opt);
-              }}
-              className={`h-8 w-full shrink-0 flex items-center justify-center text-sm font-sans snap-center transition-all duration-150 cursor-pointer ${
-                isSelected
-                  ? 'text-primary font-bold text-base scale-110 z-10'
-                  : 'text-on-surface-variant/40 hover:text-on-surface z-10'
-              }`}
+              disabled={disabled}
+              onClick={incrementHour}
+              className="text-on-surface-variant/60 hover:text-primary transition-colors p-0 cursor-pointer flex items-center justify-center"
             >
-              {opt}
+              <ChevronUp size={10} strokeWidth={3} />
             </button>
-          );
-        })}
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={decrementHour}
+              className="text-on-surface-variant/60 hover:text-primary transition-colors p-0 cursor-pointer flex items-center justify-center"
+            >
+              <ChevronDown size={10} strokeWidth={3} />
+            </button>
+          </div>
+        </div>
+
+        <span className="text-on-surface-variant font-bold text-xs shrink-0 select-none">:</span>
+
+        {/* Minute Input with custom up/down arrows */}
+        <div className={`flex items-center bg-surface-container-low border border-outline rounded-xl px-1.5 py-0.5 gap-1 transition-all ${disabled ? 'opacity-50 pointer-events-none' : 'focus-within:border-primary focus-within:ring-1 focus-within:ring-primary'}`}>
+          <input
+            type="text"
+            maxLength={2}
+            disabled={disabled}
+            value={String(minute).padStart(2, '0')}
+            onChange={(e) => handleMinuteChange(e.target.value)}
+            className="w-5 text-center bg-transparent border-none outline-none font-mono text-xs font-bold text-on-surface p-0"
+          />
+          <div className="flex flex-col -gap-0.5">
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={incrementMinute}
+              className="text-on-surface-variant/60 hover:text-primary transition-colors p-0 cursor-pointer flex items-center justify-center"
+            >
+              <ChevronUp size={10} strokeWidth={3} />
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={decrementMinute}
+              className="text-on-surface-variant/60 hover:text-primary transition-colors p-0 cursor-pointer flex items-center justify-center"
+            >
+              <ChevronDown size={10} strokeWidth={3} />
+            </button>
+          </div>
+        </div>
+
+        {/* AM/PM Button Toggle */}
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={toggleMeridian}
+          className={`px-2 py-1 rounded-lg border font-mono text-xs font-bold transition-all cursor-pointer ${
+            disabled 
+              ? 'opacity-40 pointer-events-none bg-surface-container border-outline/20 text-on-surface-variant/50' 
+              : meridian === 'AM'
+                ? 'bg-primary-container/20 text-primary border-primary/20 hover:bg-primary-container/30'
+                : 'bg-tertiary-container/20 text-tertiary border-tertiary/20 hover:bg-tertiary-container/30'
+          }`}
+        >
+          {meridian}
+        </button>
       </div>
     </div>
   );
@@ -137,23 +187,18 @@ interface TimeRangePickerProps {
 
 export default function TimeRangePicker({ value, onChange, label }: TimeRangePickerProps) {
   const { isClosed, start, end } = parseTimeRange(value);
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeSegment, setActiveSegment] = useState<'start' | 'end'>('start');
 
-  const activeTime = activeSegment === 'start' ? start : end;
-  const { hour, minute, meridian } = parseTime(activeTime);
+  const startTime = parseTime(start);
+  const endTime = parseTime(end);
 
-  const activeHour = String(hour).padStart(2, '0');
-  const activeMinute = String(minute).padStart(2, '0');
-  const activeMeridian = meridian;
+  const handleStartChange = (h: number, m: number, merid: 'AM' | 'PM') => {
+    const formattedStart = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${merid}`;
+    onChange(`${formattedStart} - ${end}`);
+  };
 
-  const handleTimeChange = (newHour: string, newMin: string, newMerid: string) => {
-    const formattedTime = `${newHour}:${newMin} ${newMerid}`;
-    if (activeSegment === 'start') {
-      onChange(`${formattedTime} - ${end}`);
-    } else {
-      onChange(`${start} - ${formattedTime}`);
-    }
+  const handleEndChange = (h: number, m: number, merid: 'AM' | 'PM') => {
+    const formattedEnd = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${merid}`;
+    onChange(`${start} - ${formattedEnd}`);
   };
 
   const handleToggleClosed = () => {
@@ -165,120 +210,49 @@ export default function TimeRangePicker({ value, onChange, label }: TimeRangePic
   };
 
   return (
-    <div className="space-y-3 font-sans w-full transition-all duration-300">
-      {/* Summary Header Row */}
-      <div className="flex justify-between items-center bg-surface-container/60 px-4 py-3 rounded-2xl border border-outline-variant/15 shadow-sm">
+    <div className="bg-surface-container-low/45 p-4 rounded-2xl border border-outline-variant/20 shadow-sm space-y-4">
+      {/* Label and Closed Status row */}
+      <div className="flex justify-between items-center pb-2.5 border-b border-outline-variant/10">
         <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
           <Clock size={14} className="text-primary" /> {label}
         </span>
-        
-        <div className="flex items-center gap-3">
-          <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-lg border ${
-            isClosed 
-              ? 'bg-red-50 text-red-700 border-red-200/50' 
-              : 'bg-primary-container/20 text-primary border-primary/20'
-          }`}>
-            {isClosed ? 'Closed' : value}
+
+        {/* Closed/Active toggle switch */}
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input 
+            type="checkbox"
+            checked={!isClosed}
+            onChange={handleToggleClosed}
+            className="w-4 h-4 text-primary border-outline rounded cursor-pointer accent-primary"
+          />
+          <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+            {!isClosed ? 'Active' : 'Closed'}
           </span>
-          <button
-            type="button"
-            onClick={() => setIsOpen(!isOpen)}
-            className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
-              isOpen 
-                ? 'bg-primary text-on-primary border-primary shadow-sm' 
-                : 'bg-white hover:bg-surface-container-low border-outline-variant text-on-surface-variant'
-            }`}
-          >
-            {isOpen ? 'Close' : 'Configure'}
-          </button>
-        </div>
+        </label>
       </div>
 
-      {/* Collapsible Edit Container */}
-      {isOpen && (
-        <div className="bg-surface-container/30 border border-outline-variant/20 p-4 rounded-2xl space-y-4 animate-[scaleIn_0.15s_ease-out]">
-          {/* Active/Closed Switch */}
-          <div className="flex justify-between items-center pb-3 border-b border-outline-variant/10">
-            <span className="text-xs font-bold text-on-surface-variant">Timing Status:</span>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input 
-                type="checkbox"
-                checked={!isClosed}
-                onChange={handleToggleClosed}
-                className="w-4 h-4 text-primary border-outline rounded cursor-pointer accent-primary"
-              />
-              <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                {!isClosed ? 'Active' : 'Closed'}
-              </span>
-            </label>
-          </div>
-
-          {!isClosed ? (
-            <div className="space-y-3">
-              {/* Segmented start/end tab picker */}
-              <div className="bg-outline-variant/10 p-1 rounded-xl flex gap-1 border border-outline-variant/5">
-                <button
-                  type="button"
-                  onClick={() => setActiveSegment('start')}
-                  className={`flex-grow flex flex-col items-center py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer ${
-                    activeSegment === 'start'
-                      ? 'bg-white text-primary shadow-md font-bold'
-                      : 'text-on-surface-variant hover:bg-white/40 font-medium'
-                  }`}
-                >
-                  <span>Start</span>
-                  <span className="text-[10px] opacity-80 mt-0.5 font-mono">{start}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveSegment('end')}
-                  className={`flex-grow flex flex-col items-center py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer ${
-                    activeSegment === 'end'
-                      ? 'bg-white text-primary shadow-md font-bold'
-                      : 'text-on-surface-variant hover:bg-white/40 font-medium'
-                  }`}
-                >
-                  <span>End</span>
-                  <span className="text-[10px] opacity-80 mt-0.5 font-mono">{end}</span>
-                </button>
-              </div>
-
-              {/* Scrolling Columns Wrapper */}
-              <div className="relative bg-surface-container-lowest rounded-2xl px-4 border border-outline-variant/35 shadow-inner overflow-hidden">
-                <div className="absolute left-2 right-2 top-[64px] h-[32px] bg-primary/10 border-y border-primary/20 pointer-events-none rounded-lg z-0" />
-                
-                <div className="relative w-full flex items-center z-10">
-                  <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-surface-container-lowest to-transparent pointer-events-none z-20" />
-                  <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-surface-container-lowest to-transparent pointer-events-none z-20" />
-
-                  <WheelColumn 
-                    options={HOUR_OPTIONS} 
-                    value={activeHour} 
-                    onChange={(val) => handleTimeChange(val, activeMinute, activeMeridian)} 
-                  />
-                  <div className="text-primary font-bold z-10 shrink-0 select-none pb-0.5">:</div>
-                  <WheelColumn 
-                    options={MINUTE_OPTIONS} 
-                    value={activeMinute} 
-                    onChange={(val) => handleTimeChange(activeHour, val, activeMeridian)} 
-                  />
-                  <WheelColumn 
-                    options={MERIDIAN_OPTIONS} 
-                    value={activeMeridian} 
-                    onChange={(val) => handleTimeChange(activeHour, activeMinute, val)} 
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="h-[180px] rounded-2xl bg-surface-container-lowest border border-dashed border-outline-variant/30 flex flex-col items-center justify-center p-4 text-center">
-              <Smile className="text-outline-variant/40 w-8 h-8 mb-2" />
-              <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">Session is Closed</p>
-              <p className="text-[10px] text-on-surface-variant/75 mt-1 leading-relaxed max-w-[200px]">
-                This timing slot is currently inactive. Toggle "Active" to enable slot configuration.
-              </p>
-            </div>
-          )}
+      {!isClosed ? (
+        <div className="grid grid-cols-2 gap-3.5 items-start">
+          <TimeInputSegment
+            label="Start Time"
+            hour={startTime.hour}
+            minute={startTime.minute}
+            meridian={startTime.meridian}
+            onChange={handleStartChange}
+          />
+          
+          <TimeInputSegment
+            label="End Time"
+            hour={endTime.hour}
+            minute={endTime.minute}
+            meridian={endTime.meridian}
+            onChange={handleEndChange}
+          />
+        </div>
+      ) : (
+        <div className="py-4 rounded-xl bg-surface-container-low/50 border border-dashed border-outline-variant/30 flex flex-col items-center justify-center p-4 text-center">
+          <Smile className="text-outline-variant/40 w-6 h-6 mb-1" />
+          <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Session is Closed</p>
         </div>
       )}
     </div>

@@ -169,6 +169,7 @@ export default function Prasadam() {
   const saveToStorage = (updated: PrasadamShipment[]) => {
     setShipments(updated);
     localStorage.setItem('sankalpvani_prasadam', JSON.stringify(updated));
+    window.dispatchEvent(new Event('sankalpvani_prasadam_updated'));
   };
 
   const handleUpdateStatus = (id: string, nextStatus: PrasadamShipment['status']) => {

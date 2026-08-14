@@ -303,14 +303,14 @@ The **SankalpVani Admin Portal** is an enterprise-grade, sacred-themed temple ad
 | **Authentication** | `LoginScreen.tsx` | Access control & login | Sacred card layout, session creation, password reset prompt |
 | **Dashboard Portal** | `DashboardPortal.tsx` | Executive summary | KPI stats, 7-day trend chart, recent transactions, donut chart, quick actions |
 | **Masters Hub** | `MastersHub.tsx` | Master indices gateway | Sub-master directory cards, sync engine health indicator |
-| **Priest Master** | `PriestMaster.tsx` | Acharyas registry | Priest directory table, status toggles, add priest modal, specialization tags |
+| **Priest Master** | `PriestMaster.tsx` | Acharyas registry | Priest directory table, status toggles, add & edit priest modals, specialization tags |
 | **Seva Master** | `SevaMaster.tsx` | Pooja offerings setup | Offerings pricing matrix, inline editing, capacity limits, active/suspended toggle, time duration picker |
 | **Temple Info** | `TempleInfo.tsx` | Core parameters | General contact info, photo upload, 4 collapsible darshan timing accordions, capacity rules |
 | **Temple Facilities**| `TempleFacilities.tsx` | Guest amenities setup | 7 facility toggles with dynamic icon mapping and description |
-| **Transactions** | `Transactions.tsx` | Financial & slip ledger | Searchable receipt ledger, column sorting, collapsible filtering, CSV export, pagination, official Darshan slip modal, thermal print trigger |
+| **Transactions** | `Transactions.tsx` | Financial & slip ledger | Searchable receipt ledger, column sorting, collapsible filtering, CSV export, pagination, expandable pilgrim roster rows (age/gender), QR-free traditional Darshan slip, numeric verification code |
 | **Scheduling** | `Scheduling.tsx` | Priest duty roster | 4-day calendar roster grid, conflict safeguard validation, shift assignment modal |
-| **Prasadam** | `Prasadam.tsx` | Remote shipping | Table-based shipment ledger, column sorting, collapsible filters, row multi-select, floating bulk actions drawer, packing label printing |
-| **Calendar Roster** | `CalendarView.tsx` | Calendar workspace | Dynamic month grid, today default selections, gotra/nakshatra select dropdowns, dynamic price calculator, dynamic descriptions/instructions box, inline status dropdown selectors, overlay overlap bug fixes, mobile dot rendering |
+| **Prasadam** | `Prasadam.tsx` | Remote shipping | Table-based shipment ledger, devotee booking order address ingestion, column sorting, collapsible filters, row multi-select, floating bulk actions drawer, packing label printing |
+| **Calendar Roster** | `CalendarView.tsx` | Calendar workspace | Dynamic month grid, today default selections, gotra/nakshatra select dropdowns, age/gender inputs, dynamic price calculator, dynamic descriptions/instructions box, inline status dropdown selectors, overlay overlap bug fixes, mobile dot rendering |
 | **System Overview** | `SystemOverview.tsx` | Operational reports | Operational analytics grid (ATV, Collections), CPU/Latency metrics, report table (Daily/Seva/Monthly/Yearly grouping), column sorting, date filters, CSV reports |
 | **Settings** | `Settings.tsx` | System configuration | SMS/Email digest alerts, session timeouts, factory reset diagnostic |
 
