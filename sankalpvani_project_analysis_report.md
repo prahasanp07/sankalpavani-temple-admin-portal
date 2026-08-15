@@ -74,6 +74,8 @@ The **SankalpVani Admin Portal** is an enterprise-grade, sacred-themed temple ad
 ### 4. Executive Dashboard Portal
 *Located in:* `components/DashboardPortal.tsx`
 
+* **Welcome Section Banner Card:**
+  * Prominent banner photo of the temple. Styled using `object-cover` and `w-full h-full` to fit the wide container aspect ratio perfectly without distorted proportions or redundant blurred backgrounds.
 * **KPI Performance Bento Grid:**
   * **Today's Devotees:** Displays the count of daily pilgrims scheduled for today. Clicking the card opens a devotee roster modal with gotra/nakshatra, booked seva, and reporting times details.
   * **Recent Bookings:** Tracking total bookings made within the last 4 hours. Clicking opens a list table modal of recent ticket registrations.
@@ -129,9 +131,18 @@ The **SankalpVani Admin Portal** is an enterprise-grade, sacred-themed temple ad
 * **Offering Master List Table:**
   * Catalog showing Seva ID, Ritual Name, Category Type, Price Ticket (₹), Daily Capacity Limit, Availability Status, and Action Controls.
 * **Expansion of Fields & Seva Types:**
-  * Supports `Daily`, `Weekly`, `Monthly`, `Special`, and `Dhanur Masa` types.
-  * Fields added for **No. of Persons per Seva**, **Extra Person Cost (₹)**, **About Seva** description, and **Instructions**.
-  * Shows **Duration / Performance Timing** badges inline for each record.
+  * Supports a variety of Seva types representing different Devasthanam scheduling rituals: `Daily`, `Weekly`, `Monthly`, `Annually`, `Special`, and `Dhanur Masa`.
+  * **Dynamic Form Scheduling Rules based on Seva Type:**
+    * **Daily:** Standard everyday Sevas with no additional date constraints, available for booking on any chosen calendar day.
+    * **Weekly:** Activates a **Day selection** multi-select array button toolbar (Sunday through Saturday). The chosen days are stored in `selectedDays` and displayed in the main table layout (e.g., `Days: Mon, Fri`). Bookings for this Seva are restricted to the selected weekdays.
+    * **Monthly, Annually, Special:** Displays a calendar-based **Date selection** field (`selectedDate` input of type `date`), binding the offering exclusively to that specific calendar date.
+    * **Dhanur Masa:** Renders a date-range calendar selector with **From** (`dateFrom`) and **To** (`dateTo`) inputs, restricting the Seva availability strictly within that solstice seasonal range (e.g., December 15 to January 15).
+  * **Enhanced Devotee Capacity & Dynamic Costing Fields:**
+    * **No. of Persons per Seva:** Specifies the standard pilgrim count allowed under a single booked ticket.
+    * **Extra Person Cost (₹):** Renders an additional ticket price per person if the count exceeds the standard allocation.
+    * **About Seva Description:** Detailed text area explaining the significance and mythological background (*sthala mahime*) of the offering.
+    * **Instructions/Guidelines:** Text area for specific instructions, dress codes, or arrival regulations for pilgrims.
+  * Shows **Duration / Performance Timing** and dynamic scheduling rules (e.g., weekday lists, dates, or date ranges) as inline badges on the list table for each record.
 * **Inline Quick-Edit Mode:**
   * Inline table row editing for Seva Name, Category Type, Price, Capacity, and inline time durations with direct Save/Cancel controls.
 * **Availability Toggle:**
@@ -301,7 +312,7 @@ The **SankalpVani Admin Portal** is an enterprise-grade, sacred-themed temple ad
 | Module Name | Component File | Primary Purpose | Key Features |
 | :--- | :--- | :--- | :--- |
 | **Authentication** | `LoginScreen.tsx` | Access control & login | Sacred card layout, session creation, password reset prompt |
-| **Dashboard Portal** | `DashboardPortal.tsx` | Executive summary | KPI stats, 7-day trend chart, recent transactions, donut chart, quick actions |
+| **Dashboard Portal** | `DashboardPortal.tsx` | Executive summary | KPI stats, w-full h-full object-cover temple banner card, 7-day trend chart, recent transactions, donut chart, quick actions |
 | **Masters Hub** | `MastersHub.tsx` | Master indices gateway | Sub-master directory cards, sync engine health indicator |
 | **Priest Master** | `PriestMaster.tsx` | Acharyas registry | Priest directory table, status toggles, add & edit priest modals, specialization tags |
 | **Seva Master** | `SevaMaster.tsx` | Pooja offerings setup | Offerings pricing matrix, inline editing, capacity limits, active/suspended toggle, time duration picker |

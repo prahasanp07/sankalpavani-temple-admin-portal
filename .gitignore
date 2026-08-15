@@ -5,3 +5,7 @@ coverage/
 *.log
 .env*
 !.env.example
+
+.gitignore
+
+sankalpvani_project_analysis_report.md
